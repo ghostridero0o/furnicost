@@ -1,0 +1,69 @@
+[
+    {
+      "doctype": "DocType",
+      "name": "Furniture Costing Item",
+      "istable": 1,
+      "module": "FurniCost",
+      "custom": 1,
+      "fields": [
+        {
+          "fieldname": "part_name",
+          "fieldtype": "Data",
+          "label": "Part Name"
+        },
+        {
+          "fieldname": "item_code",
+          "fieldtype": "Link",
+          "label": "Item",
+          "options": "Item"
+        },
+        {
+          "fieldname": "uom",
+          "fieldtype": "Link",
+          "label": "UOM",
+          "options": "UOM"
+        },
+        {
+          "fieldname": "rate",
+          "fieldtype": "Currency",
+          "label": "Rate"
+        },
+        {
+          "fieldname": "width",
+          "fieldtype": "Float",
+          "label": "Width"
+        },
+        {
+          "fieldname": "height",
+          "fieldtype": "Float",
+          "label": "Height"
+        },
+        {
+          "fieldname": "depth",
+          "fieldtype": "Float",
+          "label": "Depth"
+        },
+        {
+          "fieldname": "length",
+          "fieldtype": "Float",
+          "label": "Length"
+        },
+        {
+          "fieldname": "qty_per_unit",
+          "fieldtype": "Float",
+          "label": "Qty per Unit"
+        },
+        {
+          "fieldname": "quantity",
+          "fieldtype": "Float",
+          "label": "Quantity"
+        },
+        {
+          "fieldname": "amount",
+          "fieldtype": "Currency",
+          "label": "Amount"
+        }
+      ]
+    }
+  ]
+  

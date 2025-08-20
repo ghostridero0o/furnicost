@@ -1,0 +1,211 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:furniture",
+ "creation": "2025-08-18 22:15:24.314931",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "amended_from",
+  "section_break_wiua",
+  "furniture",
+  "customer",
+  "customer_name",
+  "attach_image",
+  "image",
+  "column_break_doyi",
+  "costing_template",
+  "furniture_type",
+  "dvt",
+  "column_break_fjhp",
+  "width",
+  "height",
+  "depth",
+  "kl_bg",
+  "accounting_dimension_section",
+  "cost_center",
+  "column_break_kkjc",
+  "project",
+  "section_break_yakx",
+  "items",
+  "total_amount",
+  "section_break_nqzd",
+  "group_items"
+ ],
+ "fields": [
+  {
+   "fieldname": "furniture",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Furniture",
+   "options": "Item",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "costing_template",
+   "fieldtype": "Link",
+   "label": "Costing Template",
+   "options": "Costing Template"
+  },
+  {
+   "fieldname": "width",
+   "fieldtype": "Int",
+   "label": "R\u1ed9ng\\D\u00e0i (mm)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "height",
+   "fieldtype": "Int",
+   "label": "Cao (mm)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "depth",
+   "fieldtype": "Int",
+   "label": "S\u00e2u (mm)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Costing Items",
+   "options": "Furniture Costing Item"
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "label": "Total Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Furniture Costing",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "section_break_wiua",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_doyi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_yakx",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fetch_from": "costing_template.furniture_type",
+   "fieldname": "furniture_type",
+   "fieldtype": "Data",
+   "label": "Furniture Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accounting_dimension_section",
+   "fieldtype": "Section Break",
+   "label": "Accounting Dimension"
+  },
+  {
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
+  },
+  {
+   "fieldname": "column_break_kkjc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "label": "Project",
+   "options": "Project"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fetch_from": "customer.customer_name",
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attach_image",
+   "fieldtype": "Attach Image",
+   "label": "Attach Image"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Image",
+   "label": "Image",
+   "options": "attach_image"
+  },
+  {
+   "fieldname": "section_break_nqzd",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "group_items",
+   "fieldtype": "Table",
+   "label": "Group Items",
+   "options": "Furniture Group Items"
+  },
+  {
+   "fieldname": "column_break_fjhp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dvt",
+   "fieldtype": "Link",
+   "label": "\u0110VT",
+   "options": "UOM"
+  },
+  {
+   "fieldname": "kl_bg",
+   "fieldtype": "Float",
+   "label": "Kh\u1ed1i l\u01b0\u1ee3ng",
+   "precision": "2"
+  }
+ ],
+ "grid_page_length": 50,
+ "image_field": "attach_image",
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2025-08-21 00:37:44.898556",
+ "modified_by": "Administrator",
+ "module": "FurniCost",
+ "name": "Furniture Costing",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

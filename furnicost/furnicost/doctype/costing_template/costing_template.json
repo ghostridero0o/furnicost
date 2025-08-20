@@ -1,0 +1,65 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:costing_template",
+ "creation": "2025-08-19 22:50:44.698922",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "costing_template",
+  "furniture_type",
+  "section_break_cczx",
+  "items"
+ ],
+ "fields": [
+  {
+   "fieldname": "costing_template",
+   "fieldtype": "Data",
+   "label": "Costing Template",
+   "unique": 1
+  },
+  {
+   "fieldname": "furniture_type",
+   "fieldtype": "Link",
+   "label": "Furni Type",
+   "options": "Furniture Type"
+  },
+  {
+   "fieldname": "section_break_cczx",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Costing Template Item"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-08-19 23:42:05.253797",
+ "modified_by": "Administrator",
+ "module": "FurniCost",
+ "name": "Costing Template",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

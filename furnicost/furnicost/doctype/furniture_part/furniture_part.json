@@ -1,0 +1,74 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:furniture_part",
+ "creation": "2025-08-19 23:01:28.819223",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "furniture_part",
+  "is_fix_height",
+  "is_fix_width",
+  "is_fix_depth",
+  "default_thickness"
+ ],
+ "fields": [
+  {
+   "fieldname": "furniture_part",
+   "fieldtype": "Data",
+   "label": "Furniture Part Name",
+   "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_fix_height",
+   "fieldtype": "Check",
+   "label": "Theo chi\u1ec1u cao Furniture"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_fix_width",
+   "fieldtype": "Check",
+   "label": "Theo chi\u1ec1u r\u1ed9ng\\d\u00e0i Furniture"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_fix_depth",
+   "fieldtype": "Check",
+   "label": "Theo chi\u1ec1u s\u00e2u Furniture"
+  },
+  {
+   "fieldname": "default_thickness",
+   "fieldtype": "Int",
+   "label": "D\u00e0y M\u1eb7c \u0110\u1ecbnh"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-08-20 00:43:27.092551",
+ "modified_by": "Administrator",
+ "module": "FurniCost",
+ "name": "Furniture Part",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
