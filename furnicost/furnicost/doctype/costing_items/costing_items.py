@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class FurnitureCosting(Document):
+class CostingItems(Document):
 	pass

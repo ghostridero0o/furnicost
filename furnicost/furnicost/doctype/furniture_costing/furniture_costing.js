@@ -51,10 +51,10 @@ frappe.ui.form.on("Furniture Costing", {
     depth: update_kl_bg
 });
 
-// --- Furniture Costing Item (child table) ---
-frappe.ui.form.on("Furniture Costing Item", {
+// --- Costing Items (child table) ---
+frappe.ui.form.on("Costing Items", {
     form_render: function(frm, cdt, cdn) {
-        console.log("[FurniCost] Furniture Costing Item row rendered:", cdn);
+        console.log("[FurniCost] Costing Items row rendered:", cdn);
     },
 
     item_code: function(frm, cdt, cdn) {

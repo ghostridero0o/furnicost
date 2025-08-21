@@ -70,7 +70,7 @@
    "fieldname": "items",
    "fieldtype": "Table",
    "label": "Costing Items",
-   "options": "Furniture Costing Item"
+   "options": "Costing Items"
   },
   {
    "fieldname": "total_amount",
@@ -184,7 +184,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-21 00:37:44.898556",
+ "modified": "2025-08-21 08:56:25.573469",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Costing",
