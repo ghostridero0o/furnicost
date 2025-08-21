@@ -207,7 +207,8 @@ function update_kl_bg(frm) {
     if (dvt === "m2") {
         kl_bg = (width * height) / 1_000_000;
     } else if (dvt === "md") {
-        kl_bg = width / 1000;
+        // Lấy giá trị lớn hơn giữa height và width, chia cho 10^3
+        kl_bg = Math.max(width, height) / 1000;
     } else if (dvt === "m3") {
         kl_bg = (width * height * depth) / 1_000_000_000;
     }

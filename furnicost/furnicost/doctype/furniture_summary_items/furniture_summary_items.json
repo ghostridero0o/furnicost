@@ -1,0 +1,78 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-08-21 21:04:34.234557",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "furniture",
+  "dvt",
+  "rate_per_unit",
+  "margin",
+  "rate_bg",
+  "qty",
+  "amount"
+ ],
+ "fields": [
+  {
+   "fieldname": "furniture",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Furniture",
+   "options": "Furniture Costing",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "furniture.dvt",
+   "fieldname": "dvt",
+   "fieldtype": "Data",
+   "label": "\u0110VT",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "furniture.rate_per_unit",
+   "fieldname": "rate_per_unit",
+   "fieldtype": "Data",
+   "label": "Gi\u00e1 v\u1ed1n",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "label": "Quantity",
+   "precision": "2"
+  },
+  {
+   "fieldname": "margin",
+   "fieldtype": "Percent",
+   "label": "L\u00e3i g\u1ed9p"
+  },
+  {
+   "fieldname": "rate_bg",
+   "fieldtype": "Currency",
+   "label": "Gi\u00e1 b\u00e1o",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Th\u00e0nh ti\u1ec1n",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-08-21 21:39:47.475541",
+ "modified_by": "Administrator",
+ "module": "FurniCost",
+ "name": "Furniture Summary Items",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

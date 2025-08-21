@@ -18,6 +18,19 @@ class FurnitureCosting(Document):
 
         # Tổng hợp group_items
         self.make_group_items()
+        # Tính lại rate_per_unit
+        self.calculate_rate_per_unit()
+
+    def calculate_rate_per_unit(self):
+        """Tính lại rate_per_unit"""
+        total_amount = self.total_amount or 0
+        kl_bg = self.kl_bg or 1  # Đảm bảo kl_bg không phải là NaN hoặc 0
+
+        if kl_bg > 0:
+            self.rate_per_unit = total_amount / kl_bg
+        else:
+            self.rate_per_unit = 0
+
 
     def update_qty_per_unit_and_amount(self):
         """Tính qty_per_unit, rate (nếu có conversion), và amount"""
