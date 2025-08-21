@@ -4,12 +4,12 @@
       "name": "Furniture Costing Item",
       "istable": 1,
       "module": "FurniCost",
-      "custom": 1,
+      "custom": 0,
       "fields": [
         {
-          "fieldname": "part_name",
-          "fieldtype": "Data",
-          "label": "Part Name"
+          "fieldname": "furniture_part",
+          "fieldtype": "Link",
+          "label": "Furniture Part"
         },
         {
           "fieldname": "item_code",
@@ -42,19 +42,14 @@
           "fieldname": "depth",
           "fieldtype": "Float",
           "label": "Depth"
-        },
-        {
-          "fieldname": "length",
-          "fieldtype": "Float",
-          "label": "Length"
-        },
+        },        
         {
           "fieldname": "qty_per_unit",
           "fieldtype": "Float",
           "label": "Qty per Unit"
         },
         {
-          "fieldname": "quantity",
+          "fieldname": "qty",
           "fieldtype": "Float",
           "label": "Quantity"
         },
@@ -62,6 +57,17 @@
           "fieldname": "amount",
           "fieldtype": "Currency",
           "label": "Amount"
+        },
+        {
+          "fieldname": "stock_uom",
+          "fieldtype": "Link",
+          "label": "Stock UOM",
+          "options": "UOM"
+        },
+        {
+          "fieldname": "conversion_factor",
+          "fieldtype": "Float",
+          "label": "Hệ số Quy đổi"
         }
       ]
     }
