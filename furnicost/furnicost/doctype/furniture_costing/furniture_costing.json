@@ -125,8 +125,11 @@
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "project",
    "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Project",
    "options": "Project"
   },
@@ -201,7 +204,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-21 21:12:08.661423",
+ "modified": "2025-08-21 23:14:19.992523",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Costing",
