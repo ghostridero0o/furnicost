@@ -110,6 +110,7 @@
    "fetch_from": "project.project_name",
    "fieldname": "project_name",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Project Name",
    "read_only": 1
   }
@@ -118,7 +119,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-22 07:24:21.775747",
+ "modified": "2025-08-22 19:59:31.289290",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Summary",

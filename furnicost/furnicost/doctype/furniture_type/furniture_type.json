@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "field:furniture_type",
  "creation": "2025-08-19 22:54:32.905398",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -11,16 +12,18 @@
   {
    "fieldname": "furniture_type",
    "fieldtype": "Data",
-   "label": "Furniture Type"
+   "label": "Furniture Type",
+   "unique": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-19 22:54:56.412677",
+ "modified": "2025-08-22 18:12:35.188441",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Type",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {

@@ -45,6 +45,25 @@ frappe.ui.form.on("Furniture Costing", {
     items_remove: function(frm) {
         update_group_items(frm);
     },
+    rm_cost_as_per(frm) {
+        // khi đổi thì reset lại price_list nếu không phải Price List
+        if (frm.doc.rm_cost_as_per !== "Price List") {
+            frm.set_value("price_list", null);
+        }
+        update_all_items_rate(frm);
+    },
+    
+    price_list(frm) {
+        if (frm.doc.rm_cost_as_per === "Price List") {
+            update_all_items_rate(frm);
+        }
+    },
+    margin: function(frm) {
+        calculate_rate_bg(frm);
+    },
+    rate_per_unit: function(frm) {
+        calculate_rate_bg(frm);
+    },
     dvt: update_kl_bg,
     width: update_kl_bg,
     height: update_kl_bg,
@@ -57,25 +76,8 @@ frappe.ui.form.on("Costing Items", {
         console.log("[FurniCost] Costing Items row rendered:", cdn);
     },
 
-    item_code: function(frm, cdt, cdn) {
-        let row = locals[cdt][cdn];
-        if (row.item_code) {
-            frappe.db.get_value("Item", row.item_code, ["stock_uom", "last_purchase_rate"])
-                .then(r => {
-                    if (r.message) {
-                        frappe.model.set_value(cdt, cdn, "uom", r.message.stock_uom);
-                        frappe.model.set_value(cdt, cdn, "stock_uom", r.message.stock_uom);
-                        frappe.model.set_value(cdt, cdn, "rate", r.message.last_purchase_rate);
-                        frappe.model.set_value(cdt, cdn, "conversion_factor", 1); // mặc định 1
-                        row.__last_purchase_rate = r.message.last_purchase_rate; // lưu tạm để tính sau
-                    }
-                })
-                .then(() => {
-                    recalc_and_group(frm, cdt, cdn);
-                });
-        } else {
-            recalc_and_group(frm, cdt, cdn);
-        }
+    item_code(frm, cdt, cdn) {
+        update_item_rate(frm, cdt, cdn);
     },
     
     furniture_part: function(frm, cdt, cdn) {
@@ -157,6 +159,18 @@ frappe.ui.form.on("Costing Items", {
 });
 
 // --- Helper functions ---
+function calculate_rate_bg(frm) {
+    let rate_per_unit = frm.doc.rate_per_unit || 0;
+    let margin = frm.doc.margin || 0;
+
+    if (rate_per_unit > 0) {
+        let rate_bg = rate_per_unit / (1 - (margin / 100.0));
+        frm.set_value("rate_bg", rate_bg);
+    } else {
+        frm.set_value("rate_bg", 0);
+    }
+}
+
 function recalc_and_group(frm, cdt, cdn) {
     let row = locals[cdt][cdn];
     if (!row) return;
@@ -216,6 +230,46 @@ function update_kl_bg(frm) {
     if (kl_bg < 0 || isNaN(kl_bg)) kl_bg = 1;
 
     frm.set_value("kl_bg", kl_bg);
+}
+// --- Helpers để xử lý giá ---
+function update_all_items_rate(frm) {
+    if (!frm.doc.items) return;
+    frm.doc.items.forEach(d => {
+        update_item_rate(frm, d.doctype, d.name);
+    });
+}
+
+function update_item_rate(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+    if (!row.item_code) return;
+
+    const mode = frm.doc.rm_cost_as_per;
+
+    if (mode === "Valuation Rate" || mode === "Last Purchase Rate") {
+        let field = (mode === "Valuation Rate") ? "valuation_rate" : "last_purchase_rate";
+        frappe.db.get_value("Item", row.item_code, [field, "stock_uom"]).then(r => {
+            if (r.message) {
+                frappe.model.set_value(cdt, cdn, "uom", r.message.stock_uom);
+                frappe.model.set_value(cdt, cdn, "stock_uom", r.message.stock_uom);
+                frappe.model.set_value(cdt, cdn, "rate", r.message[field] || 0);
+                frappe.model.set_value(cdt, cdn, "conversion_factor", 1);
+            }
+        }).then(() => {
+            recalc_and_group(frm, cdt, cdn);
+        });
+
+    } else if (mode === "Price List" && frm.doc.price_list) {
+        frappe.db.get_value("Item Price", {
+            item_code: row.item_code,
+            price_list: frm.doc.price_list
+        }, "price_list_rate").then(r => {
+            if (r.message) {
+                frappe.model.set_value(cdt, cdn, "rate", r.message.price_list_rate || 0);
+            }
+        }).then(() => {
+            recalc_and_group(frm, cdt, cdn);
+        });
+    }
 }
 
 

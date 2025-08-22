@@ -12,7 +12,6 @@
   "customer",
   "customer_name",
   "attach_image",
-  "image",
   "column_break_doyi",
   "costing_template",
   "furniture_type",
@@ -26,12 +25,18 @@
   "cost_center",
   "column_break_kkjc",
   "project",
+  "section_break_qugw",
+  "rm_cost_as_per",
+  "column_break_cwom",
+  "price_list",
   "section_break_yakx",
   "items",
   "section_break_jjxv",
   "total_amount",
+  "margin",
   "column_break_tept",
   "rate_per_unit",
+  "rate_bg",
   "section_break_nqzd",
   "group_items"
  ],
@@ -152,12 +157,6 @@
    "label": "Attach Image"
   },
   {
-   "fieldname": "image",
-   "fieldtype": "Image",
-   "label": "Image",
-   "options": "attach_image"
-  },
-  {
    "fieldname": "section_break_nqzd",
    "fieldtype": "Section Break"
   },
@@ -197,6 +196,41 @@
    "fieldtype": "Currency",
    "label": "Gi\u00e1 v\u1ed1n 1 \u0110\u01a1n v\u1ecb",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_qugw",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "Price List",
+   "fieldname": "rm_cost_as_per",
+   "fieldtype": "Select",
+   "label": "C\u00e1ch t\u00ednh gi\u00e1",
+   "options": "Valuation Rate\nLast Purchase Rate\nPrice List"
+  },
+  {
+   "fieldname": "column_break_cwom",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.rm_cost_as_per===\"Price List\"",
+   "fieldname": "price_list",
+   "fieldtype": "Link",
+   "label": "B\u1ea3ng gi\u00e1",
+   "mandatory_depends_on": "eval:doc.rm_cost_as_per===\"Price List\"",
+   "options": "Price List"
+  },
+  {
+   "fieldname": "margin",
+   "fieldtype": "Percent",
+   "label": "Nh\u1eadp l\u00e3i g\u1ed9p"
+  },
+  {
+   "depends_on": "eval:doc.margin",
+   "fieldname": "rate_bg",
+   "fieldtype": "Currency",
+   "label": "Gi\u00e1 b\u00e1o",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
@@ -204,7 +238,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-21 23:14:19.992523",
+ "modified": "2025-08-22 19:32:38.896568",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Costing",
