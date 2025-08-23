@@ -3,7 +3,6 @@ frappe.ui.form.on("Furniture Summary", {
     refresh(frm) {
         update_total_amount(frm);
         update_total_cost(frm);
-        update_group_items(frm);
         
         if (!frm.is_new()) {
             frm.add_custom_button(__('Get Items From'), () => {
@@ -11,15 +10,23 @@ frappe.ui.form.on("Furniture Summary", {
             });
         }
     },
+    
+    before_save(frm) {
+        // Đảm bảo group items được cập nhật trước khi save
+        return new Promise((resolve) => {
+            update_group_items_sync(frm, resolve);
+        });
+    },
+    
     items_add(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
-        update_group_items(frm);        
+        debounce_update_group_items(frm);        
     },
+    
     items_remove(frm) {
         update_total_amount(frm);
         update_total_cost(frm);
-        update_group_items(frm);   
-        
+        debounce_update_group_items(frm);   
     }
 });
 
@@ -211,24 +218,35 @@ function update_total_cost(frm) {
     frm.set_value("total_cost", total_cost);
 }
 
-// --- Group Items Sync ---
-function update_group_items(frm) {
+// --- Group Items Sync (Version đồng bộ cho before_save) ---
+function update_group_items_sync(frm, callback) {
     const items = frm.doc.items || [];
     if (items.length === 0) {
         frm.clear_table("group");
         frm.refresh_field("group");
+        if (callback) callback();
+        return;
+    }
+
+    // Lọc ra những items có furniture name hợp lệ
+    const valid_items = items.filter(it => it.furniture && it.furniture.trim() !== '');
+    
+    if (valid_items.length === 0) {
+        frm.clear_table("group");
+        frm.refresh_field("group");
+        if (callback) callback();
         return;
     }
 
     let aggregated = {};
     let completed_calls = 0;
 
-    items.forEach(it => {
+    valid_items.forEach(it => {
         frappe.call({
             method: "furnicost.furnicost.doctype.furniture_summary.furniture_summary.get_group_items_from_furniture",
             args: {
                 furniture_name: it.furniture,
-                summary_qty: it.qty    // 👈 truyền qty trực tiếp
+                summary_qty: parseFloat(it.qty) || 0
             },
             callback(res) {
                 completed_calls++;
@@ -249,7 +267,8 @@ function update_group_items(frm) {
                     aggregated[key].amount += (parseFloat(row.rate) || 0) * (parseFloat(row.total_qty) || 0);
                 });
 
-                if (completed_calls === items.length) {
+                // Khi tất cả calls hoàn thành
+                if (completed_calls === valid_items.length) {
                     frm.clear_table("group");
 
                     Object.values(aggregated).forEach(r => {
@@ -266,6 +285,95 @@ function update_group_items(frm) {
                         row.price_ratio = (r.amount / total_amount) * 100;
                     });
 
+                    frm.refresh_field("group");
+                    
+                    // Gọi callback để báo hiệu hoàn thành
+                    if (callback) callback();
+                }
+            },
+            error(err) {
+                console.error('Error calling get_group_items_from_furniture:', err);
+                completed_calls++;
+                if (completed_calls === valid_items.length && callback) {
+                    callback();
+                }
+            }
+        });
+    });
+}
+
+// --- Group Items Async (Version bất đồng bộ cho các trường hợp khác) ---
+function update_group_items(frm) {
+    const items = frm.doc.items || [];
+    if (items.length === 0) {
+        frm.clear_table("group");
+        frm.refresh_field("group");
+        return;
+    }
+
+    // Lọc ra những items có furniture name hợp lệ
+    const valid_items = items.filter(it => it.furniture && it.furniture.trim() !== '');
+    
+    if (valid_items.length === 0) {
+        frm.clear_table("group");
+        frm.refresh_field("group");
+        return;
+    }
+
+    let aggregated = {};
+    let completed_calls = 0;
+
+    valid_items.forEach(it => {
+        frappe.call({
+            method: "furnicost.furnicost.doctype.furniture_summary.furniture_summary.get_group_items_from_furniture",
+            args: {
+                furniture_name: it.furniture,
+                summary_qty: parseFloat(it.qty) || 0
+            },
+            callback(res) {
+                completed_calls++;
+                const data = res.message || [];
+
+                data.forEach(row => {
+                    let key = row.item_code + "|" + row.uom + "|" + row.rate;
+                    if (!aggregated[key]) {
+                        aggregated[key] = {
+                            item_code: row.item_code,
+                            uom: row.uom,
+                            rate: row.rate,
+                            total_qty: 0,
+                            amount: 0
+                        };
+                    }
+                    aggregated[key].total_qty += parseFloat(row.total_qty) || 0;
+                    aggregated[key].amount += (parseFloat(row.rate) || 0) * (parseFloat(row.total_qty) || 0);
+                });
+
+                if (completed_calls === valid_items.length) {
+                    frm.clear_table("group");
+
+                    Object.values(aggregated).forEach(r => {
+                        let row = frm.add_child("group");
+                        row.item_code = r.item_code;
+                        row.uom = r.uom;
+                        row.rate = r.rate;
+                        row.total_qty = r.total_qty;
+                        row.amount = r.amount;
+
+                        const total_cost = parseFloat(frm.doc.total_cost) || 1;
+                        const total_amount = parseFloat(frm.doc.total_amount) || 1;
+                        row.cost_ratio = (r.amount / total_cost) * 100;
+                        row.price_ratio = (r.amount / total_amount) * 100;
+                    });
+
+                    frm.refresh_field("group");
+                }
+            },
+            error(err) {
+                console.error('Error calling get_group_items_from_furniture:', err);
+                completed_calls++;
+                if (completed_calls === valid_items.length) {
+                    // Tất cả calls đã hoàn thành, refresh field
                     frm.refresh_field("group");
                 }
             }
