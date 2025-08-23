@@ -18,8 +18,14 @@
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2025-08-22 18:12:35.188441",
+ "links": [
+  {
+   "group": "Connection",
+   "link_doctype": "Costing Template",
+   "link_fieldname": "furniture_type"
+  }
+ ],
+ "modified": "2025-08-23 07:26:21.090365",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Type",

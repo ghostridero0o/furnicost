@@ -37,8 +37,14 @@
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
- "links": [],
- "modified": "2025-08-19 23:42:05.253797",
+ "links": [
+  {
+   "group": "Connection",
+   "link_doctype": "Furniture Costing",
+   "link_fieldname": "costing_template"
+  }
+ ],
+ "modified": "2025-08-23 07:37:00.623093",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Costing Template",

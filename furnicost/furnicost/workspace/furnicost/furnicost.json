@@ -16,7 +16,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "2",
+   "label": "T\u1ed5ng h\u1ee3p",
    "link_count": 1,
    "link_type": "DocType",
    "onboard": 0,
@@ -36,7 +36,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "D\u1ef1 to\u00e1n n\u1ed9i th\u1ea5t",
-   "link_count": 3,
+   "link_count": 4,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -74,24 +74,15 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "T\u1ed5ng h\u1ee3p",
-   "link_count": 1,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Furniture Summary",
+   "label": "Furniture Type",
    "link_count": 0,
-   "link_to": "Furniture Summary",
+   "link_to": "Furniture Type",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
   }
  ],
- "modified": "2025-08-23 00:45:48.215881",
+ "modified": "2025-08-23 07:31:03.506849",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "FurniCost",

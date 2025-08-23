@@ -237,8 +237,14 @@
  "image_field": "attach_image",
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
- "links": [],
- "modified": "2025-08-22 19:32:38.896568",
+ "links": [
+  {
+   "group": "Connection",
+   "link_doctype": "Furniture Summary",
+   "link_fieldname": "furniture"
+  }
+ ],
+ "modified": "2025-08-23 07:35:23.262226",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Costing",
