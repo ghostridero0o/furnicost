@@ -12,7 +12,9 @@
   "uom",
   "total_qty",
   "rate",
-  "amount"
+  "amount",
+  "cost_ratio",
+  "price_ratio"
  ],
  "fields": [
   {
@@ -59,13 +61,25 @@
    "fieldname": "group_items_column",
    "fieldtype": "Column Break",
    "label": "Group Items"
+  },
+  {
+   "fieldname": "cost_ratio",
+   "fieldtype": "Percent",
+   "label": "C\u01a1 c\u1ea5u gi\u00e1 v\u1ed1n",
+   "read_only": 1
+  },
+  {
+   "fieldname": "price_ratio",
+   "fieldtype": "Percent",
+   "label": "C\u01a1 c\u1ea5u gi\u00e1 b\u00e1o",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-08-22 18:38:41.608369",
+ "modified": "2025-08-23 18:45:26.830162",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Group Items",

@@ -20,7 +20,9 @@
   "items",
   "section_break_snpw",
   "total_cost",
-  "total_amount"
+  "total_amount",
+  "group_section",
+  "group"
  ],
  "fields": [
   {
@@ -115,13 +117,25 @@
    "hidden": 1,
    "label": "Project Name",
    "read_only": 1
+  },
+  {
+   "fieldname": "group_section",
+   "fieldtype": "Section Break",
+   "label": "Group"
+  },
+  {
+   "fieldname": "group",
+   "fieldtype": "Table",
+   "label": "Group Items",
+   "options": "Furniture Group Items",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-23 00:58:27.279651",
+ "modified": "2025-08-23 18:42:00.041843",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Summary",

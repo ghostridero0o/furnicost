@@ -3,6 +3,7 @@ frappe.ui.form.on("Furniture Summary", {
     refresh(frm) {
         update_total_amount(frm);
         update_total_cost(frm);
+        
 
         if (!frm.is_new()) {
             frm.add_custom_button(__('Get Items From'), () => {
@@ -12,10 +13,12 @@ frappe.ui.form.on("Furniture Summary", {
     },
     items_add(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
+        update_group_items(frm);
     },
     items_remove(frm) {
         update_total_amount(frm);
         update_total_cost(frm);
+        
     }
 });
 
@@ -23,11 +26,24 @@ frappe.ui.form.on("Furniture Summary", {
 frappe.ui.form.on("Furniture Summary Items", {
     form_render(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
+        update_group_items(frm);
     },
-    rate_per_unit: recalc_and_update,
-    margin: recalc_and_update,
-    qty: recalc_and_update,
-    furniture_part: recalc_and_update
+    rate_per_unit: function(frm, cdt, cdn) {
+        recalc_and_update(frm, cdt, cdn);
+        update_group_items(frm);
+    },
+    margin: function(frm, cdt, cdn) {
+        recalc_and_update(frm, cdt, cdn);
+        update_group_items(frm);
+    },
+    qty: function(frm, cdt, cdn) {
+        recalc_and_update(frm, cdt, cdn);
+        update_group_items(frm);
+    },
+    furniture_part: function(frm, cdt, cdn) {
+        recalc_and_update(frm, cdt, cdn);
+        update_group_items(frm);
+    }
 });
 
 // ---- Helpers ----
@@ -129,7 +145,7 @@ function fetch_and_show_costings(frm, fieldname, value) {
                     checked.each(function() {
                         const furniture = $(this).data("furniture");
                         const dvt = $(this).data("dvt");
-                        const rate = $(this).data("rate");   // 👈 phải dùng "rate" vì HTML attr là data-rate
+                        const rate = $(this).data("rate");
                     
                         let row = frm.add_child("items");
                         row.furniture = furniture;
@@ -138,9 +154,9 @@ function fetch_and_show_costings(frm, fieldname, value) {
                     });
                 
                     frm.refresh_field("items");
+                    update_group_items(frm);   // cập nhật luôn group items
                     d.hide();
                 }
-                
             });
 
             d.fields_dict.costing_html.$wrapper.html(html);
@@ -171,6 +187,7 @@ function update_total_amount(frm) {
     let total = 0;
     (frm.doc.items || []).forEach(r => total += parseFloat(r.amount) || 0);
     frm.set_value("total_amount", total);
+    update_group_items(frm);
 }
 function update_total_cost(frm) {
     let total_cost = 0;
@@ -180,4 +197,63 @@ function update_total_cost(frm) {
         total_cost += rate * qty;
     });
     frm.set_value("total_cost", total_cost);
+    update_group_items(frm);   // 👈 gọi lại
+}
+
+// --- Group Items Sync ---
+function update_group_items(frm) {
+    const furnitures = (frm.doc.items || []).map(r => r.furniture).filter(f => f);
+
+    if (furnitures.length === 0) {
+        frm.clear_table("group");
+        frm.refresh_field("group");
+        return;
+    }
+
+    let aggregated = {};
+
+    let promises = furnitures.map(furniture =>
+        frappe.call({
+            method: "furnicost.furnicost.doctype.furniture_summary.furniture_summary.get_group_items_from_furniture",
+            args: { furniture_name: furniture }
+        })
+    );
+
+    Promise.all(promises).then(results => {
+        results.forEach(res => {
+            (res.message || []).forEach(row => {
+                let key = row.item_code + "|" + row.uom + "|" + row.rate;
+                if (!aggregated[key]) {
+                    aggregated[key] = {
+                        item_code: row.item_code,
+                        uom: row.uom,
+                        rate: row.rate,
+                        total_qty: 0,
+                        amount: 0
+                    };
+                }
+                aggregated[key].total_qty += flt(row.total_qty);
+                aggregated[key].amount += flt(row.rate) * flt(row.total_qty);
+            });
+        });
+
+        frm.clear_table("group");
+
+        Object.values(aggregated).forEach(r => {
+            let row = frm.add_child("group");
+            row.item_code = r.item_code;
+            row.uom = r.uom;
+            row.rate = r.rate;
+            row.total_qty = r.total_qty;
+            row.amount = r.amount;
+
+            // ⚡️ tính tỷ lệ
+            const total_cost = flt(frm.doc.total_cost) || 1;
+            const total_amount = flt(frm.doc.total_amount) || 1;
+            row.cost_ratio = r.amount / total_cost;
+            row.price_ratio = r.amount / total_amount;
+        });
+
+        frm.refresh_field("group");
+    });
 }
