@@ -250,8 +250,8 @@ function update_group_items(frm) {
             // ⚡️ tính tỷ lệ
             const total_cost = flt(frm.doc.total_cost) || 1;
             const total_amount = flt(frm.doc.total_amount) || 1;
-            row.cost_ratio = r.amount / total_cost;
-            row.price_ratio = r.amount / total_amount;
+            row.cost_ratio = r.amount / total_cost*100;
+            row.price_ratio = r.amount / total_amount*100;
         });
 
         frm.refresh_field("group");
