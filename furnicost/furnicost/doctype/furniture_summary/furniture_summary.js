@@ -3,8 +3,8 @@ frappe.ui.form.on("Furniture Summary", {
     refresh(frm) {
         update_total_amount(frm);
         update_total_cost(frm);
+        update_group_items(frm);
         
-
         if (!frm.is_new()) {
             frm.add_custom_button(__('Get Items From'), () => {
                 show_source_dialog(frm);
@@ -13,11 +13,12 @@ frappe.ui.form.on("Furniture Summary", {
     },
     items_add(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
-        update_group_items(frm);
+        update_group_items(frm);        
     },
     items_remove(frm) {
         update_total_amount(frm);
         update_total_cost(frm);
+        update_group_items(frm);   
         
     }
 });
@@ -26,27 +27,38 @@ frappe.ui.form.on("Furniture Summary", {
 frappe.ui.form.on("Furniture Summary Items", {
     form_render(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
-        update_group_items(frm);
+        debounce_update_group_items(frm);
     },
     rate_per_unit: function(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
-        update_group_items(frm);
+        debounce_update_group_items(frm);
     },
     margin: function(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
-        update_group_items(frm);
+        debounce_update_group_items(frm);
     },
     qty: function(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
-        update_group_items(frm);
+        debounce_update_group_items(frm);
     },
     furniture_part: function(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
-        update_group_items(frm);
+        debounce_update_group_items(frm);
     }
 });
 
 // ---- Helpers ----
+
+// Debounce để tránh gọi update_group_items quá nhiều lần
+let group_update_timeout;
+function debounce_update_group_items(frm) {
+    if (group_update_timeout) {
+        clearTimeout(group_update_timeout);
+    }
+    group_update_timeout = setTimeout(() => {
+        update_group_items(frm);
+    }, 300);
+}
 
 // Prompt chọn source: Project hoặc Customer
 function show_source_dialog(frm) {
@@ -154,7 +166,7 @@ function fetch_and_show_costings(frm, fieldname, value) {
                     });
                 
                     frm.refresh_field("items");
-                    update_group_items(frm);   // cập nhật luôn group items
+                    debounce_update_group_items(frm);
                     d.hide();
                 }
             });
@@ -187,8 +199,8 @@ function update_total_amount(frm) {
     let total = 0;
     (frm.doc.items || []).forEach(r => total += parseFloat(r.amount) || 0);
     frm.set_value("total_amount", total);
-    update_group_items(frm);
 }
+
 function update_total_cost(frm) {
     let total_cost = 0;
     (frm.doc.items || []).forEach(r => {
@@ -197,63 +209,66 @@ function update_total_cost(frm) {
         total_cost += rate * qty;
     });
     frm.set_value("total_cost", total_cost);
-    update_group_items(frm);   // 👈 gọi lại
 }
 
 // --- Group Items Sync ---
 function update_group_items(frm) {
-    const furnitures = (frm.doc.items || []).map(r => r.furniture).filter(f => f);
-
-    if (furnitures.length === 0) {
+    const items = frm.doc.items || [];
+    if (items.length === 0) {
         frm.clear_table("group");
         frm.refresh_field("group");
         return;
     }
 
     let aggregated = {};
+    let completed_calls = 0;
 
-    let promises = furnitures.map(furniture =>
+    items.forEach(it => {
         frappe.call({
             method: "furnicost.furnicost.doctype.furniture_summary.furniture_summary.get_group_items_from_furniture",
-            args: { furniture_name: furniture }
-        })
-    );
+            args: {
+                furniture_name: it.furniture,
+                summary_qty: it.qty    // 👈 truyền qty trực tiếp
+            },
+            callback(res) {
+                completed_calls++;
+                const data = res.message || [];
 
-    Promise.all(promises).then(results => {
-        results.forEach(res => {
-            (res.message || []).forEach(row => {
-                let key = row.item_code + "|" + row.uom + "|" + row.rate;
-                if (!aggregated[key]) {
-                    aggregated[key] = {
-                        item_code: row.item_code,
-                        uom: row.uom,
-                        rate: row.rate,
-                        total_qty: 0,
-                        amount: 0
-                    };
+                data.forEach(row => {
+                    let key = row.item_code + "|" + row.uom + "|" + row.rate;
+                    if (!aggregated[key]) {
+                        aggregated[key] = {
+                            item_code: row.item_code,
+                            uom: row.uom,
+                            rate: row.rate,
+                            total_qty: 0,
+                            amount: 0
+                        };
+                    }
+                    aggregated[key].total_qty += parseFloat(row.total_qty) || 0;
+                    aggregated[key].amount += (parseFloat(row.rate) || 0) * (parseFloat(row.total_qty) || 0);
+                });
+
+                if (completed_calls === items.length) {
+                    frm.clear_table("group");
+
+                    Object.values(aggregated).forEach(r => {
+                        let row = frm.add_child("group");
+                        row.item_code = r.item_code;
+                        row.uom = r.uom;
+                        row.rate = r.rate;
+                        row.total_qty = r.total_qty;
+                        row.amount = r.amount;
+
+                        const total_cost = parseFloat(frm.doc.total_cost) || 1;
+                        const total_amount = parseFloat(frm.doc.total_amount) || 1;
+                        row.cost_ratio = (r.amount / total_cost) * 100;
+                        row.price_ratio = (r.amount / total_amount) * 100;
+                    });
+
+                    frm.refresh_field("group");
                 }
-                aggregated[key].total_qty += flt(row.total_qty);
-                aggregated[key].amount += flt(row.rate) * flt(row.total_qty);
-            });
+            }
         });
-
-        frm.clear_table("group");
-
-        Object.values(aggregated).forEach(r => {
-            let row = frm.add_child("group");
-            row.item_code = r.item_code;
-            row.uom = r.uom;
-            row.rate = r.rate;
-            row.total_qty = r.total_qty;
-            row.amount = r.amount;
-
-            // ⚡️ tính tỷ lệ
-            const total_cost = flt(frm.doc.total_cost) || 1;
-            const total_amount = flt(frm.doc.total_amount) || 1;
-            row.cost_ratio = r.amount / total_cost*100;
-            row.price_ratio = r.amount / total_amount*100;
-        });
-
-        frm.refresh_field("group");
     });
 }
