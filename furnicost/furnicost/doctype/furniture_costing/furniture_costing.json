@@ -164,7 +164,8 @@
    "fieldname": "group_items",
    "fieldtype": "Table",
    "label": "Group Items",
-   "options": "Furniture Group Items"
+   "options": "Furniture Group Items",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_fjhp",
@@ -244,7 +245,7 @@
    "link_fieldname": "furniture"
   }
  ],
- "modified": "2025-08-23 07:35:23.262226",
+ "modified": "2025-08-23 19:05:05.183177",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Costing",
