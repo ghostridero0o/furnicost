@@ -1,4 +1,5 @@
 from frappe.model.document import Document
+from frappe.utils import flt
 import frappe
 
 class FurnitureCosting(Document):
@@ -18,8 +19,12 @@ class FurnitureCosting(Document):
 
         # Tổng hợp group_items
         self.make_group_items()
+
         # Tính lại rate_per_unit
         self.calculate_rate_per_unit()
+
+        # Tính rate_bg
+        self.calculate_rate_bg()
 
     def calculate_rate_per_unit(self):
         """Tính lại rate_per_unit"""
@@ -31,11 +36,22 @@ class FurnitureCosting(Document):
         else:
             self.rate_per_unit = 0
 
+    def calculate_rate_bg(self):
+        """rate_bg = rate_per_unit / (1 - margin/100), giống JS"""
+        rate_per_unit = flt(self.rate_per_unit) or 0
+        margin = flt(self.margin) or 0
+
+        if rate_per_unit > 0:
+            denom = 1 - (margin / 100.0)
+            # Tránh chia cho 0 nếu margin = 100%
+            self.rate_bg = flt(rate_per_unit / denom) if denom != 0 else 0
+        else:
+            self.rate_bg = 0
 
     def update_qty_per_unit_and_amount(self):
         """Tính qty_per_unit, rate (nếu có conversion), và amount"""
         for d in self.items:
-            # 👉 Đồng bộ rate nếu uom khác stock_uom
+            # Đồng bộ rate nếu uom khác stock_uom
             if d.uom and d.stock_uom and d.uom != d.stock_uom:
                 if d.conversion_factor and d.conversion_factor > 0:
                     item = frappe.get_value("Item", d.item_code, "last_purchase_rate")
@@ -72,8 +88,12 @@ class FurnitureCosting(Document):
 
         selected = [(fname, val) for flag, fname, val in dims if getattr(part, flag, 0)]
 
-        # ✅ Luôn gán default_thickness nếu có
-        if getattr(part, "default_thickness", None):
+        # ✅ Kiểm tra nếu depth đã được nhập thủ công, không tự động thay đổi
+        if d.depth and d.depth != part.default_thickness:
+            return  # Nếu depth đã được set thủ công, bỏ qua phần gán giá trị default_thickness
+
+        # ✅ Luôn luôn gán default_thickness nếu có và không có giá trị thủ công từ người dùng
+        if getattr(part, "default_thickness", None) and not d.depth:
             d.depth = part.default_thickness
 
         # ✅ Nếu chỉ tick is_fix_depth
