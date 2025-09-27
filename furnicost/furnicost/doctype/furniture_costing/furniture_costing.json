@@ -31,6 +31,14 @@
   "price_list",
   "section_break_yakx",
   "items",
+  "section_break_zsaw",
+  "vat_tu_chinh",
+  "nc",
+  "h\u00e0ng_th\u01b0\u01a1ng_m\u1ea1i",
+  "column_break_idlv",
+  "chi_ph\u00ed_v\u1eadt_t\u01b0_ph\u1ee5",
+  "chi_phi_sxc_per",
+  "chi_phi_sxc",
   "section_break_jjxv",
   "total_amount",
   "margin",
@@ -232,6 +240,48 @@
    "fieldtype": "Currency",
    "label": "Gi\u00e1 b\u00e1o",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_zsaw",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "vat_tu_chinh",
+   "fieldtype": "Currency",
+   "label": "Chi ph\u00ed v\u1eadt t\u01b0 ch\u00ednh",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nc",
+   "fieldtype": "Currency",
+   "label": "Chi ph\u00ed nh\u00e2n c\u00f4ng",
+   "read_only": 1
+  },
+  {
+   "fieldname": "h\u00e0ng_th\u01b0\u01a1ng_m\u1ea1i",
+   "fieldtype": "Currency",
+   "label": "H\u00e0ng th\u01b0\u01a1ng m\u1ea1i",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_idlv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "chi_ph\u00ed_v\u1eadt_t\u01b0_ph\u1ee5",
+   "fieldtype": "Currency",
+   "label": "Chi ph\u00ed v\u1eadt t\u01b0 ph\u1ee5"
+  },
+  {
+   "fieldname": "chi_phi_sxc",
+   "fieldtype": "Currency",
+   "label": "Chi ph\u00ed s\u1ea3n xu\u1ea5t chung",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chi_phi_sxc_per",
+   "fieldtype": "Percent",
+   "label": "Chi ph\u00ed s\u1ea3n xu\u1ea5t chung (%) theo nh\u00e2n c\u00f4ng"
   }
  ],
  "grid_page_length": 50,
@@ -245,7 +295,7 @@
    "link_fieldname": "furniture"
   }
  ],
- "modified": "2025-08-23 19:05:05.183177",
+ "modified": "2025-09-27 14:10:53.556315",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Costing",

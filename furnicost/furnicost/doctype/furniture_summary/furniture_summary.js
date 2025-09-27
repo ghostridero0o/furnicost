@@ -48,7 +48,7 @@ frappe.ui.form.on("Furniture Summary Items", {
         recalc_and_update(frm, cdt, cdn);
         debounce_update_group_items(frm);
     },
-    furniture_part: function(frm, cdt, cdn) {
+    furniture: function(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
         debounce_update_group_items(frm);
     }

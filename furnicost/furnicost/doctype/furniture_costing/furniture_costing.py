@@ -25,6 +25,7 @@ class FurnitureCosting(Document):
 
         # Tính rate_bg
         self.calculate_rate_bg()
+        self.calculate_cost_breakdown()
 
     def calculate_rate_per_unit(self):
         """Tính lại rate_per_unit"""
@@ -73,11 +74,7 @@ class FurnitureCosting(Document):
             if d.qty_per_unit < 0:
                 d.qty_per_unit = 0
 
-            d.amount = (d.rate or 0) * d.qty_per_unit * (d.qty or 0)
-
-    def calculate_total_amount(self):
-        """Tính tổng amount từ bảng items"""
-        self.total_amount = sum((d.amount or 0) for d in self.items)
+            d.amount = (d.rate or 0) * d.qty_per_unit * (d.qty or 0)   
 
     def apply_dimension_logic(self, d, part):
         dims = [
@@ -150,3 +147,31 @@ class FurnitureCosting(Document):
         for k, row in grouped.items():
             row["amount"] = row["total_qty"] * row["rate"]
             self.append("group_items", row)
+    def calculate_cost_breakdown(self):
+        # reset
+        self.vat_tu_chinh = 0
+        self.nc = 0
+        self.hàng_thương_mại = 0
+
+        # duyệt qua bảng con costing_items
+        for row in self.items:
+            amount = flt(row.amount)
+
+            if row.cost_type == "Vật tư chính":
+                self.vat_tu_chinh += amount
+            elif row.cost_type == "Nhân công":
+                self.nc += amount
+            elif row.cost_type == "Hàng thương mại":
+                self.hàng_thương_mại += amount
+        # tính chi phí sản xuất chung = nc * %/100
+        self.chi_phi_sxc = self.nc * (flt(self.chi_phi_sxc_per) / 100.0)
+  
+    def calculate_total_amount(self):
+        """Tính tổng amount từ bảng items"""
+        self.total_amount = (
+            self.vat_tu_chinh
+            + self.nc
+            + self.hàng_thương_mại
+            + self.chi_phi_sxc
+    )
+

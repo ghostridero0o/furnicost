@@ -17,7 +17,8 @@
   "qty",
   "amount",
   "stock_uom",
-  "conversion_factor"
+  "conversion_factor",
+  "cost_type"
  ],
  "fields": [
   {
@@ -104,13 +105,20 @@
    "fieldname": "conversion_factor",
    "fieldtype": "Float",
    "label": "H\u1ec7 s\u1ed1 Quy \u0111\u1ed5i"
+  },
+  {
+   "fetch_from": "furniture_part.cost_type",
+   "fieldname": "cost_type",
+   "fieldtype": "Data",
+   "label": "Ph\u00e2n lo\u1ea1i",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-08-24 17:14:55.703416",
+ "modified": "2025-09-27 13:53:08.622542",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Costing Items",

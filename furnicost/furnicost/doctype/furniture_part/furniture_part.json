@@ -10,7 +10,8 @@
   "is_fix_height",
   "is_fix_width",
   "is_fix_depth",
-  "default_thickness"
+  "default_thickness",
+  "cost_type"
  ],
  "fields": [
   {
@@ -41,6 +42,12 @@
    "fieldname": "default_thickness",
    "fieldtype": "Int",
    "label": "D\u00e0y M\u1eb7c \u0110\u1ecbnh"
+  },
+  {
+   "fieldname": "cost_type",
+   "fieldtype": "Select",
+   "label": "Ph\u00e2n lo\u1ea1i",
+   "options": "V\u1eadt t\u01b0 ch\u00ednh\nNh\u00e2n c\u00f4ng\nH\u00e0ng th\u01b0\u01a1ng m\u1ea1i"
   }
  ],
  "grid_page_length": 50,
@@ -57,7 +64,7 @@
    "link_fieldname": "furniture_part"
   }
  ],
- "modified": "2025-08-23 07:28:34.715006",
+ "modified": "2025-09-27 13:51:43.738640",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Part",
