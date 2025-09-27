@@ -46,8 +46,10 @@
   {
    "fieldname": "cost_type",
    "fieldtype": "Select",
+   "in_list_view": 1,
    "label": "Ph\u00e2n lo\u1ea1i",
-   "options": "V\u1eadt t\u01b0 ch\u00ednh\nNh\u00e2n c\u00f4ng\nH\u00e0ng th\u01b0\u01a1ng m\u1ea1i"
+   "options": "V\u1eadt t\u01b0 ch\u00ednh\nNh\u00e2n c\u00f4ng\nH\u00e0ng th\u01b0\u01a1ng m\u1ea1i",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
@@ -64,7 +66,7 @@
    "link_fieldname": "furniture_part"
   }
  ],
- "modified": "2025-09-27 13:51:43.738640",
+ "modified": "2025-09-27 14:40:11.306289",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Part",

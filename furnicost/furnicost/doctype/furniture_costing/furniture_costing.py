@@ -167,11 +167,15 @@ class FurnitureCosting(Document):
         self.chi_phi_sxc = self.nc * (flt(self.chi_phi_sxc_per) / 100.0)
   
     def calculate_total_amount(self):
-        """Tính tổng amount từ bảng items"""
-        self.total_amount = (
-            self.vat_tu_chinh
-            + self.nc
-            + self.hàng_thương_mại
-            + self.chi_phi_sxc
-    )
+        """Tính tổng amount từ bảng items và tổng hợp theo cost type"""
+        # Tổng từ bảng con items (raw)
+        self.items_amount = sum((flt(d.amount) for d in self.items))
 
+        # Tổng hợp chi phí
+        self.total_amount = (
+            flt(self.vat_tu_chinh)
+            + flt(self.nc)
+            + flt(self.hàng_thương_mại)
+            + flt(self.chi_phi_sxc)
+            + flt(self.vat_tu_phu)
+        )
