@@ -15,6 +15,7 @@ class FurnitureCosting(Document):
             self.apply_dimension_logic(d, part)
 
         # Tính tổng amount
+        self.calculate_cost_breakdown()
         self.calculate_total_amount()
 
         # Tổng hợp group_items
@@ -25,7 +26,7 @@ class FurnitureCosting(Document):
 
         # Tính rate_bg
         self.calculate_rate_bg()
-        self.calculate_cost_breakdown()
+        
 
     def calculate_rate_per_unit(self):
         """Tính lại rate_per_unit"""
