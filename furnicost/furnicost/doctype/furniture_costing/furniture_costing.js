@@ -261,16 +261,15 @@ function update_item_rate(frm, cdt, cdn) {
 
     if (mode === "Valuation Rate" || mode === "Last Purchase Rate") {
         const field = (mode === "Valuation Rate") ? "valuation_rate" : "last_purchase_rate";
+
         frappe.db.get_value("Item", row.item_code, [field, "stock_uom"]).then(r => {
             if (r.message) {
                 const base = Number(r.message[field]) || 0;
-                // Lưu base theo stock_uom để quy đổi khi đổi UOM
                 row.__base_rate_in_stock = base;
 
-                // Tạm set rate = base; handle_uom_conversion sẽ điều chỉnh theo UOM hiện tại
                 frappe.model.set_value(cdt, cdn, "rate", base);
+                frappe.model.set_value(cdt, cdn, "stock_uom", r.message.stock_uom);
 
-                // Đặt 1 nếu conversion_factor rỗng/0
                 if (!row.conversion_factor || Number(row.conversion_factor) === 0) {
                     frappe.model.set_value(cdt, cdn, "conversion_factor", 1);
                 }
@@ -283,15 +282,30 @@ function update_item_rate(frm, cdt, cdn) {
         frappe.db.get_value("Item Price", {
             item_code: row.item_code,
             price_list: frm.doc.price_list
-        }, ["price_list_rate"]).then(r => {
+        }, ["price_list_rate", "uom"]).then(r => {
             if (r.message) {
                 const base = Number(r.message.price_list_rate) || 0;
-                row.__base_rate_in_stock = base; // giả định rate theo stock_uom
+                row.__base_rate_in_stock = base;
+
                 frappe.model.set_value(cdt, cdn, "rate", base);
 
-                if (!row.conversion_factor || Number(row.conversion_factor) === 0) {
-                    frappe.model.set_value(cdt, cdn, "conversion_factor", 1);
+                if (r.message.uom) {
+                    // cập nhật cả stock_uom và uom
+                    frappe.model.set_value(cdt, cdn, "stock_uom", r.message.uom);
+                    frappe.model.set_value(cdt, cdn, "uom", r.message.uom);
+                } else {
+                    // fallback: nếu Item Price không có UOM, lấy UOM chuẩn từ Item
+                    frappe.db.get_value("Item", row.item_code, "stock_uom").then(r2 => {
+                        if (r2.message) {
+                            frappe.model.set_value(cdt, cdn, "stock_uom", r2.message.stock_uom);
+                            // chỉ set uom nếu hiện tại đang trống
+                            if (!row.uom) {
+                                frappe.model.set_value(cdt, cdn, "uom", r2.message.stock_uom);
+                            }
+                        }
+                    });
                 }
+                
             }
         }).then(() => {
             handle_uom_conversion(frm, cdt, cdn);
@@ -301,6 +315,7 @@ function update_item_rate(frm, cdt, cdn) {
         handle_uom_conversion(frm, cdt, cdn);
     }
 }
+
 
 
 // =====================

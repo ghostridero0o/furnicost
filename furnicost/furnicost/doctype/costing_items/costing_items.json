@@ -95,7 +95,6 @@
    "label": "Amount"
   },
   {
-   "fetch_from": "item_code.stock_uom",
    "fieldname": "stock_uom",
    "fieldtype": "Data",
    "label": "Stock UOM",
@@ -118,7 +117,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-09-27 13:53:08.622542",
+ "modified": "2025-09-28 13:04:36.939826",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Costing Items",

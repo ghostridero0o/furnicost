@@ -302,7 +302,7 @@
    "link_fieldname": "furniture"
   }
  ],
- "modified": "2025-09-27 14:41:48.167808",
+ "modified": "2025-09-28 17:24:52.067095",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Costing",
@@ -319,6 +319,31 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Manufacturing Manager",
+   "share": 1,
+   "submit": 1,
    "write": 1
   }
  ],
