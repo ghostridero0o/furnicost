@@ -36,36 +36,48 @@ frappe.ui.form.on("Furniture Summary Items", {
         recalc_and_update(frm, cdt, cdn);
         debounce_update_group_items(frm);
     },
-    rate_per_unit: function(frm, cdt, cdn) {
+    rate_per_unit(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
         debounce_update_group_items(frm);
     },
-    margin: function(frm, cdt, cdn) {
+    margin(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
         debounce_update_group_items(frm);
     },
-    qty: function(frm, cdt, cdn) {
+    qty(frm, cdt, cdn) {
         recalc_and_update(frm, cdt, cdn);
         debounce_update_group_items(frm);
     },
-    furniture: function(frm, cdt, cdn) {
-        recalc_and_update(frm, cdt, cdn);
-        debounce_update_group_items(frm);
+    furniture(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (!row.furniture) {
+            recalc_and_update(frm, cdt, cdn);
+            debounce_update_group_items(frm);
+            return;
+        }
+
+        // --- Fetch dữ liệu từ Furniture Costing ---
+        frappe.call({
+            method: "frappe.client.get",
+            args: {
+                doctype: "Furniture Costing",
+                name: row.furniture
+            },
+            callback(r) {
+                if (!r.message) return;
+                const fc = r.message;
+
+                frappe.model.set_value(cdt, cdn, "dvt", fc.dvt || "");
+                frappe.model.set_value(cdt, cdn, "rate_per_unit", fc.rate_per_unit || 0);
+                frappe.model.set_value(cdt, cdn, "margin", fc.margin || 0);
+
+                // Sau khi update, recalc lại
+                recalc_and_update(frm, cdt, cdn);
+                debounce_update_group_items(frm);
+            }
+        });
     }
 });
-
-// ---- Helpers ----
-
-// Debounce để tránh gọi update_group_items quá nhiều lần
-let group_update_timeout;
-function debounce_update_group_items(frm) {
-    if (group_update_timeout) {
-        clearTimeout(group_update_timeout);
-    }
-    group_update_timeout = setTimeout(() => {
-        update_group_items(frm);
-    }, 300);
-}
 
 // Prompt chọn source: Project hoặc Customer
 function show_source_dialog(frm) {
@@ -97,7 +109,7 @@ function fetch_and_show_costings(frm, fieldname, value) {
         args: {
             doctype: "Furniture Costing",
             filters: { [fieldname]: value },
-            fields: ["name", "furniture", "dvt", "rate_per_unit"],
+            fields: ["name", "furniture", "dvt", "rate_per_unit", "margin"],   // 👈 thêm margin
             limit_page_length: 100
         },
         callback(r) {
@@ -125,6 +137,7 @@ function fetch_and_show_costings(frm, fieldname, value) {
                             <th>Furniture</th>
                             <th>ĐVT</th>
                             <th>Rate per Unit</th>
+                            <th>Margin (%)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -135,14 +148,16 @@ function fetch_and_show_costings(frm, fieldname, value) {
                     <tr>
                         <td>
                             <input type="checkbox"
-                            data-name="${r.name}"
-                            data-furniture="${r.furniture || ""}"
-                            data-dvt="${r.dvt || ""}"
-                            data-rate="${r.rate_per_unit || 0}">
+                                data-name="${r.name}"
+                                data-furniture="${r.furniture || ""}"
+                                data-dvt="${r.dvt || ""}"
+                                data-rate="${r.rate_per_unit || 0}"
+                                data-margin="${r.margin || 0}">
                         </td>
                         <td>${r.furniture || ""}</td>
                         <td>${r.dvt || ""}</td>
                         <td>${frappe.format(r.rate_per_unit || 0, {fieldtype: "Currency"})}</td>
+                        <td>${r.margin || 0}</td>
                     </tr>
                 `;
             });
@@ -165,11 +180,13 @@ function fetch_and_show_costings(frm, fieldname, value) {
                         const furniture = $(this).data("furniture");
                         const dvt = $(this).data("dvt");
                         const rate = $(this).data("rate");
+                        const margin = $(this).data("margin");   // 👈 lấy margin
                     
                         let row = frm.add_child("items");
                         row.furniture = furniture;
                         row.dvt = dvt;
                         row.rate_per_unit = rate;
+                        row.margin = margin;   // 👈 gán luôn margin
                     });
                 
                     frm.refresh_field("items");
@@ -183,6 +200,7 @@ function fetch_and_show_costings(frm, fieldname, value) {
         }
     });
 }
+
 
 // --- Recalc helpers ---
 function recalc_and_update(frm, cdt, cdn) {
