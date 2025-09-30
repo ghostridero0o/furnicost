@@ -29,3 +29,4 @@ def get_group_items_from_furniture(furniture_name, summary_qty=1):
         })
     return items
 
+

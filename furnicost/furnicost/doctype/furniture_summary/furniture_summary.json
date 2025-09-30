@@ -44,6 +44,7 @@
    "fieldtype": "Section Break"
   },
   {
+   "columns": 10,
    "fieldname": "items",
    "fieldtype": "Table",
    "label": "Furniture Summary Items",
@@ -135,7 +136,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-09-30 15:46:44.011096",
+ "modified": "2025-09-30 23:34:29.780825",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Summary",
