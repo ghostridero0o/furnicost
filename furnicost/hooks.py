@@ -249,5 +249,9 @@ fixtures = [
     {
         "dt": "Property Setter",
         "filters": [["module", "=", "Furnicost"]]
+    },
+        {
+        "dt": "Client Script",
+        "filters": [["module", "=", "Furnicost"]]
     }
 ]

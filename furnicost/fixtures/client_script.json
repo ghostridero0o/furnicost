@@ -1,0 +1,13 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Furniture Summary",
+  "enabled": 1,
+  "modified": "2025-09-30 22:20:33.679398",
+  "module": "FurniCost",
+  "name": "Button Download Furniture Group Items",
+  "script": "// load SheetJS từ CDN\nfrappe.require(\"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js\");\n\nfrappe.ui.form.on(\"Furniture Summary\", {\n    refresh: function(frm) {\n        let grid_field = frm.fields_dict[\"group\"];   // fieldname đúng là \"group\"\n        if (!grid_field) return;\n\n        let grid = grid_field.grid;\n\n        if (!grid.download_btn) {\n            grid.download_btn = $('<button class=\"btn btn-sm btn-primary\" style=\"margin-top:10px;\">Download Excel</button>');\n\n            grid.download_btn.click(function() {\n                // header có thêm Depth\n                let rows = [[\"Item Code\", \"UOM\", \"Depth\", \"Qty\", \"Rate\", \"Amount\"]];\n\n                (frm.doc.group || []).forEach(d => {\n                    rows.push([\n                        d.item_code || \"\",\n                        d.uom || \"\",\n                        d.depth || \"\",   // 👈 thêm trường depth\n                        d.qty != null ? d.qty : \"\",\n                        d.rate != null ? d.rate : \"\",\n                        d.amount != null ? d.amount : \"\"\n                    ]);\n                });\n\n                // tạo file Excel\n                let wb = XLSX.utils.book_new();\n                let ws = XLSX.utils.aoa_to_sheet(rows);\n                XLSX.utils.book_append_sheet(wb, ws, \"Furniture Group Items\");\n\n                XLSX.writeFile(wb, (frm.doc.name || \"furniture\") + \"_furniture_items.xlsx\");\n            });\n\n            $(grid.wrapper).append(grid.download_btn);\n        }\n    }\n});\n",
+  "view": "Form"
+ }
+]
