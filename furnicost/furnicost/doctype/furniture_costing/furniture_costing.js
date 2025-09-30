@@ -329,7 +329,7 @@ function update_group_items(frm) {
     (frm.doc.items || []).forEach(d => {
         if (!d.item_code) return;
 
-        const key = `${d.item_code}||${d.uom}||${d.rate || 0}`;
+        const key = `${d.item_code}||${d.uom}||${d.rate || 0}||${d.depth || 0}`;
         const qty_total = (Number(d.qty_per_unit) || 0) * (Number(d.qty) || 0);
 
         if (!grouped[key]) {
@@ -337,11 +337,13 @@ function update_group_items(frm) {
                 item_code: d.item_code,
                 uom: d.uom,
                 rate: Number(d.rate) || 0,
+                depth: d.depth || 0,
                 total_qty: qty_total
             };
         } else {
             grouped[key].total_qty += qty_total;
         }
+        
     });
 
     frm.clear_table("group_items");

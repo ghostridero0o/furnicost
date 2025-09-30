@@ -10,6 +10,7 @@
   "group_items_column",
   "item_code",
   "uom",
+  "depth",
   "total_qty",
   "rate",
   "amount",
@@ -73,13 +74,20 @@
    "fieldtype": "Percent",
    "label": "C\u01a1 c\u1ea5u gi\u00e1 b\u00e1o",
    "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "depth",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Depth"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-08-23 18:45:26.830162",
+ "modified": "2025-09-30 21:19:06.745771",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Group Items",

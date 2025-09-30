@@ -22,6 +22,7 @@ def get_group_items_from_furniture(furniture_name, summary_qty=1):
         items.append({
             "item_code": row.item_code,
             "uom": row.uom,
+            "depth": row.depth,
             "rate": row.rate,
             "total_qty": scaled_qty,   # dùng scaled_qty
             "amount": scaled_qty * (flt(row.rate) or 0)

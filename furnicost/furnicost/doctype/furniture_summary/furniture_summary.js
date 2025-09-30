@@ -271,11 +271,12 @@ function update_group_items_sync(frm, callback) {
                 const data = res.message || [];
 
                 data.forEach(row => {
-                    let key = row.item_code + "|" + row.uom + "|" + row.rate;
+                    let key = row.item_code + "|" + row.uom + "|" + row.rate + (row.depth || 0);
                     if (!aggregated[key]) {
                         aggregated[key] = {
                             item_code: row.item_code,
                             uom: row.uom,
+                            depth: row.depth || 0,
                             rate: row.rate,
                             total_qty: 0,
                             amount: 0
@@ -293,6 +294,7 @@ function update_group_items_sync(frm, callback) {
                         let row = frm.add_child("group");
                         row.item_code = r.item_code;
                         row.uom = r.uom;
+                        row.depth = r.depth;
                         row.rate = r.rate;
                         row.total_qty = r.total_qty;
                         row.amount = r.amount;
@@ -353,11 +355,12 @@ function update_group_items(frm) {
                 const data = res.message || [];
 
                 data.forEach(row => {
-                    let key = row.item_code + "|" + row.uom + "|" + row.rate;
+                    let key = row.item_code + "|" + row.uom + "|" + row.rate + "|" + (row.depth || 0);
                     if (!aggregated[key]) {
                         aggregated[key] = {
                             item_code: row.item_code,
                             uom: row.uom,
+                            depth: row.depth || 0,
                             rate: row.rate,
                             total_qty: 0,
                             amount: 0
@@ -374,6 +377,7 @@ function update_group_items(frm) {
                         let row = frm.add_child("group");
                         row.item_code = r.item_code;
                         row.uom = r.uom;
+                        row.depth = r.depth;
                         row.rate = r.rate;
                         row.total_qty = r.total_qty;
                         row.amount = r.amount;

@@ -130,7 +130,8 @@ class FurnitureCosting(Document):
             if not d.item_code:
                 continue
 
-            key = (d.item_code, d.uom, d.rate)
+            # gộp thêm depth
+            key = (d.item_code, d.uom, d.rate, d.depth or 0)
             qty_total = (d.qty_per_unit or 0) * (d.qty or 0)
 
             if key not in grouped:
@@ -138,6 +139,7 @@ class FurnitureCosting(Document):
                     "item_code": d.item_code,
                     "uom": d.uom,
                     "rate": d.rate or 0,
+                    "depth": d.depth or 0,   # 👈 thêm depth
                     "total_qty": qty_total,
                 }
             else:
