@@ -1,4 +1,6 @@
+import frappe
 from frappe.model.document import Document
+from frappe.model.mapper import get_mapped_doc
 from frappe.utils import flt
 
 
@@ -65,3 +67,51 @@ class BOQ(Document):
 			grand_total = total - discount_amount + total_taxes_and_charges
 
 		self.grand_total = grand_total
+
+
+@frappe.whitelist()
+def make_sales_order(source_name, target_doc=None):
+	return get_mapped_doc(
+		"BOQ",
+		source_name,
+		{
+			"BOQ": {
+				"doctype": "Sales Order",
+				"field_map": {
+					"customer": "customer",
+					"customer_name": "customer_name",
+					"company": "company",
+					"transaction_date": "transaction_date",
+					"valid_till": "valid_till",
+					"order_type": "order_type",
+					"currency": "currency",
+					"conversion_rate": "conversion_rate",
+					"selling_price_list": "selling_price_list",
+					"price_list_currency": "price_list_currency",
+					"plc_conversion_rate": "plc_conversion_rate",
+					"tax_category": "tax_category",
+					"shipping_rule": "shipping_rule",
+					"remarks": "remarks",
+				},
+			},
+			"BOQ Item": {
+				"doctype": "Sales Order Item",
+				"field_map": {
+					"uom": "uom",
+					"weight_rc": "qty",
+					"rate": "rate",
+				},
+				"postprocess": _set_sales_order_item_custom_name,
+			},
+		},
+		target_doc,
+	)
+
+
+def _set_sales_order_item_custom_name(source, target, source_parent=None):
+	item_name = source.get("item_name") or ""
+	material_description = source.get("material_description") or ""
+	if material_description:
+		target.custom_item_custom_name = f"{item_name}\n{material_description}".strip()
+	else:
+		target.custom_item_custom_name = item_name

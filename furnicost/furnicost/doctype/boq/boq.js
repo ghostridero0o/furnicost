@@ -17,6 +17,14 @@ frappe.ui.form.on("BOQ", {
 	},
 	refresh(frm) {
 		recalc_boq_items(frm);
+		if (!frm.is_new()) {
+			frm.add_custom_button(__("Create Sales Order"), () => {
+				frappe.model.open_mapped_doc({
+					method: "furnicost.furnicost.doctype.boq.boq.make_sales_order",
+					frm: frm,
+				});
+			});
+		}
 	},
 	validate(frm) {
 		recalc_boq_items(frm);
