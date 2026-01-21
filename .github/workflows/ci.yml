@@ -102,6 +102,7 @@ jobs:
       - name: Run Tests
         working-directory: ${{ github.workspace }}/frappe-bench
         run: |
+          bench --site test_site execute "frappe.get_doc({'doctype':'Warehouse Type','name':'Transit','warehouse_type_name':'Transit'}).insert(ignore_if_duplicate=True)"
           bench --site test_site set-config allow_tests true
           bench --site test_site run-tests --app furnicost
         env:
