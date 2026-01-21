@@ -13,3 +13,18 @@ def ensure_warehouse_type():
         }
     )
     doc.insert(ignore_permissions=True)
+
+
+def ensure_customer_group():
+    if frappe.db.exists("Customer Group", "All Customer Groups"):
+        return
+
+    doc = frappe.get_doc(
+        {
+            "doctype": "Customer Group",
+            "name": "All Customer Groups",
+            "customer_group_name": "All Customer Groups",
+            "is_group": 1,
+        }
+    )
+    doc.insert(ignore_permissions=True)

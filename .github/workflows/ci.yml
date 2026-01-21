@@ -103,6 +103,7 @@ jobs:
         working-directory: ${{ github.workspace }}/frappe-bench
         run: |
           bench --site test_site execute furnicost.furnicost.ci.ensure_warehouse_type
+          bench --site test_site execute furnicost.furnicost.ci.ensure_customer_group
           bench --site test_site set-config allow_tests true
           bench --site test_site run-tests --app furnicost
         env:
