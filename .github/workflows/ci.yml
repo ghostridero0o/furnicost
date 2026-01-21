@@ -105,6 +105,7 @@ jobs:
           bench --site test_site execute furnicost.furnicost.ci.ensure_warehouse_type
           bench --site test_site execute furnicost.furnicost.ci.ensure_frappe_fixtures
           bench --site test_site execute furnicost.furnicost.ci.ensure_erpnext_fixtures
+          bench --site test_site execute furnicost.furnicost.ci.ensure_company
           bench --site test_site set-config allow_tests true
           bench --site test_site run-tests --app furnicost
         env:

@@ -40,3 +40,21 @@ def ensure_erpnext_fixtures():
     from erpnext.setup.setup_wizard.operations import install_fixtures as erpnext_fixtures
 
     erpnext_fixtures.install(country="India")
+
+
+def ensure_company():
+    if frappe.db.exists("Company", "Test Company"):
+        frappe.defaults.set_global_default("company", "Test Company")
+        return
+
+    doc = frappe.get_doc(
+        {
+            "doctype": "Company",
+            "company_name": "Test Company",
+            "abbr": "TC",
+            "country": "India",
+            "default_currency": "INR",
+        }
+    )
+    doc.insert(ignore_permissions=True)
+    frappe.defaults.set_global_default("company", doc.name)
