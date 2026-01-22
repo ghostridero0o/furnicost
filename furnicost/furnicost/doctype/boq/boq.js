@@ -14,6 +14,8 @@ frappe.ui.form.on("BOQ", {
 				company: frm.doc.company,
 			},
 		}));
+		frm.set_query("customer_address", erpnext.queries.address_query);
+		frm.set_query("company_address", erpnext.queries.company_address_query);
 	},
 	refresh(frm) {
 		recalc_boq_items(frm);
@@ -24,7 +26,35 @@ frappe.ui.form.on("BOQ", {
 					frm: frm,
 				});
 			});
+			frm.add_custom_button(__("Get Items From"), () => {
+				showSourceDialog(frm);
+			});
 		}
+	},
+	customer(frm) {
+		if (frm.doc.customer) {
+			erpnext.utils.get_party_details(frm);
+		} else {
+			frm.set_value("customer_address", "");
+		}
+	},
+	company(frm) {
+		if (!frm.doc.company) {
+			frm.set_value("company_address", "");
+			return;
+		}
+
+		frappe.call({
+			method: "erpnext.setup.doctype.company.company.get_default_company_address",
+			args: {
+				name: frm.doc.company,
+				existing_address: frm.doc.company_address || "",
+			},
+			debounce: 2000,
+			callback: (r) => {
+				frm.set_value("company_address", (r && r.message) || "");
+			},
+		});
 	},
 	validate(frm) {
 		recalc_boq_items(frm);
@@ -70,6 +100,185 @@ frappe.ui.form.on("BOQ", {
 		}
 	},
 });
+
+// ==========================
+// GET ITEMS FROM FURNITURE COSTING
+// ==========================
+function showSourceDialog(frm) {
+	frappe.prompt(
+		[
+			{
+				fieldname: "source_type",
+				label: __("Get From"),
+				fieldtype: "Select",
+				options: ["Project", "Customer"],
+				reqd: 1,
+			},
+		],
+		(values) => {
+			const fieldname = values.source_type.toLowerCase();
+			const value = frm.doc[fieldname];
+
+			if (!value) {
+				frappe.msgprint(__("Please set {0} before continuing", [values.source_type]));
+				return;
+			}
+
+			fetchAndShowCostings(frm, fieldname, value);
+		},
+		__("Get Items From"),
+		__("Continue")
+	);
+}
+
+function fetchAndShowCostings(frm, fieldname, value) {
+	const filters = { [fieldname]: value };
+
+	frappe.call({
+		method: "frappe.client.get_list",
+		args: {
+			doctype: "Furniture Costing",
+			filters,
+			fields: ["name", "furniture", "dvt", "width", "height", "depth", "rate_bg"],
+			limit_page_length: 100,
+		},
+		callback(r) {
+			const records = r.message || [];
+			if (!records.length) {
+				frappe.msgprint(__("No Furniture Costing found"));
+				return;
+			}
+
+			showCostingSelectionDialog(frm, records);
+		},
+	});
+}
+
+function showCostingSelectionDialog(frm, records) {
+	const html = buildCostingTableHTML(records);
+
+	const dialog = new frappe.ui.Dialog({
+		title: __("Select Furniture Costings"),
+		fields: [
+			{
+				fieldtype: "HTML",
+				fieldname: "costing_html",
+			},
+		],
+		primary_action_label: __("Select"),
+		primary_action() {
+			const selected = getSelectedCostings(dialog);
+			if (!selected.length) {
+				frappe.msgprint(__("Please select at least one record"));
+				return;
+			}
+
+			addSelectedItemsToForm(frm, selected);
+			dialog.hide();
+		},
+	});
+
+	dialog.fields_dict.costing_html.$wrapper.html(html);
+	dialog.show();
+}
+
+function buildCostingTableHTML(records) {
+	const rows = records
+		.map(
+			(r) => `
+        <tr>
+            <td>
+                <input type="checkbox"
+                    data-furniture="${r.furniture || ""}"
+                    data-dvt="${r.dvt || ""}"
+                    data-width="${r.width || 0}"
+                    data-height="${r.height || 0}"
+                    data-depth="${r.depth || 0}"
+                    data-rate="${r.rate_bg || 0}">
+            </td>
+            <td>${r.furniture || ""}</td>
+            <td>${r.dvt || ""}</td>
+            <td>${r.width || 0}</td>
+            <td>${r.height || 0}</td>
+            <td>${r.depth || 0}</td>
+            <td>${frappe.format(r.rate_bg || 0, { fieldtype: "Currency" })}</td>
+        </tr>
+    `
+		)
+		.join("");
+
+	return `
+        <style>
+            .costing-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            .costing-table th, .costing-table td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            .costing-table th {
+                background-color: #f5f5f5;
+                font-weight: 600;
+            }
+            .costing-table tbody tr:hover {
+                background-color: #f9f9f9;
+            }
+        </style>
+        <table class="costing-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">Select</th>
+                    <th>Furniture</th>
+                    <th>ĐVT</th>
+                    <th>Width</th>
+                    <th>Height</th>
+                    <th>Depth</th>
+                    <th>Rate BG</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows}
+            </tbody>
+        </table>
+    `;
+}
+
+function getSelectedCostings(dialog) {
+	const selected = [];
+
+	dialog.$wrapper.find('input[type="checkbox"]:checked').each(function () {
+		const $checkbox = $(this);
+		selected.push({
+			furniture: $checkbox.data("furniture"),
+			dvt: $checkbox.data("dvt"),
+			width: $checkbox.data("width"),
+			height: $checkbox.data("height"),
+			depth: $checkbox.data("depth"),
+			rate_bg: $checkbox.data("rate"),
+		});
+	});
+
+	return selected;
+}
+
+function addSelectedItemsToForm(frm, items) {
+	items.forEach((item) => {
+		const row = frm.add_child("items");
+		Object.assign(row, {
+			item_name: item.furniture || "",
+			uom: item.dvt || "",
+			length: item.width || 0,
+			height: item.height || 0,
+			depth: item.depth || 0,
+			rate: item.rate_bg || 0,
+		});
+		recalc_boq_item(frm, row.doctype, row.name);
+	});
+
+	frm.refresh_field("items");
+}
 
 // ==========================
 // BOQ Item (child table)

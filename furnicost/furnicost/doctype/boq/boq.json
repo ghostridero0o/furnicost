@@ -18,6 +18,7 @@
   "valid_till",
   "column_break_2",
   "company",
+  "project",
   "order_type",
   "amended_from",
   "currency_and_price_list",
@@ -53,7 +54,11 @@
   "discount_amount",
   "additional_info_section",
   "remarks",
-  "status"
+  "status",
+  "address_and_contact_tab",
+  "customer_address",
+  "column_break_address",
+  "company_address"
  ],
  "fields": [
   {
@@ -114,6 +119,14 @@
    "label": "Company",
    "options": "Company",
    "reqd": 1
+  },
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project"
   },
   {
    "default": "Sales",
@@ -333,6 +346,27 @@
    "label": "Status",
    "options": "Draft\nSubmitted\nCancelled",
    "read_only": 1
+  },
+  {
+   "fieldname": "address_and_contact_tab",
+   "fieldtype": "Tab Break",
+   "label": "Address and Contact"
+  },
+  {
+   "fieldname": "customer_address",
+   "fieldtype": "Link",
+   "label": "Customer Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "column_break_address",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company_address",
+   "fieldtype": "Link",
+   "label": "Company Address",
+   "options": "Address"
   }
  ],
  "index_web_pages_for_search": 1,
