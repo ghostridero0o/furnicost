@@ -294,7 +294,6 @@
  "grid_page_length": 50,
  "image_field": "attach_image",
  "index_web_pages_for_search": 1,
- "is_submittable": 1,
  "links": [
   {
    "group": "Connection",
@@ -302,7 +301,7 @@
    "link_fieldname": "furniture"
   }
  ],
- "modified": "2025-09-28 17:24:52.067095",
+ "modified": "2026-01-22 18:12:29.514420",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Furniture Costing",
@@ -333,8 +332,6 @@
    "write": 1
   },
   {
-   "amend": 1,
-   "cancel": 1,
    "create": 1,
    "email": 1,
    "export": 1,
@@ -343,7 +340,6 @@
    "report": 1,
    "role": "Manufacturing Manager",
    "share": 1,
-   "submit": 1,
    "write": 1
   }
  ],

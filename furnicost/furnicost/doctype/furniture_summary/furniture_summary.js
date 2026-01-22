@@ -387,6 +387,10 @@ function addSelectedItemsToForm(frm, items) {
     items.forEach(item => {
         const row = frm.add_child("items");
         Object.assign(row, item);
+        if (row.qty === undefined || row.qty === null || row.qty === "") {
+            row.qty = 1;
+        }
+        recalcRow(frm, row.doctype, row.name);
     });
     
     frm.refresh_field("items");
