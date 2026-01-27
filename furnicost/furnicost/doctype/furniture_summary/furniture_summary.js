@@ -16,10 +16,10 @@ frappe.ui.form.on("Furniture Summary", {
                 showSourceDialog(frm);
             });
         }
-    },
-    
-    before_save(frm) {
-        return refreshItemsFromFurniture(frm).then(() => updateGroupItems(frm, true));
+
+        frm.add_custom_button(__('Update Items Summary'), () => {
+            refreshItemsFromFurniture(frm).then(() => updateGroupItems(frm, false));
+        });
     },
     
     items_add(frm, cdt, cdn) {
@@ -107,7 +107,7 @@ function recalcRow(frm, cdt, cdn) {
     frappe.model.set_value(cdt, cdn, {
         rate_bg,
         amount
-    });
+    }, undefined, true);
 
     updateTotals(frm);
 }
@@ -126,10 +126,8 @@ function updateTotals(frm) {
         total_cost += rate * qty;
     });
     
-    frm.set_value({
-        total_amount,
-        total_cost
-    });
+    frm.set_value("total_amount", total_amount, null, true);
+    frm.set_value("total_cost", total_cost, null, true);
 }
 
 async function refreshItemsFromFurniture(frm) {
@@ -150,7 +148,7 @@ async function refreshItemsFromFurniture(frm) {
                 dvt,
                 rate_per_unit,
                 margin
-            });
+            }, undefined, true);
         }).catch(err => {
             console.error(`Error refreshing furniture ${item.furniture}:`, err);
         })
