@@ -19,7 +19,7 @@ frappe.ui.form.on("Furniture Summary", {
     },
     
     before_save(frm) {
-        return updateGroupItems(frm, true);
+        return refreshItemsFromFurniture(frm).then(() => updateGroupItems(frm, true));
     },
     
     items_add(frm, cdt, cdn) {
@@ -130,6 +130,37 @@ function updateTotals(frm) {
         total_amount,
         total_cost
     });
+}
+
+async function refreshItemsFromFurniture(frm) {
+    const items = (frm.doc.items || []).filter(it => it.furniture && it.furniture.trim() !== "");
+    if (items.length === 0) return Promise.resolve();
+
+    const requests = items.map(item => 
+        frappe.call({
+            method: "frappe.client.get",
+            args: {
+                doctype: "Furniture Costing",
+                name: item.furniture
+            }
+        }).then(res => {
+            if (!res.message) return;
+            const { dvt = "", rate_per_unit = 0, margin = 0 } = res.message;
+            return frappe.model.set_value(item.doctype, item.name, {
+                dvt,
+                rate_per_unit,
+                margin
+            });
+        }).catch(err => {
+            console.error(`Error refreshing furniture ${item.furniture}:`, err);
+        })
+    );
+
+    await Promise.all(requests);
+
+    items.forEach(item => recalcRow(frm, item.doctype, item.name));
+    updateTotals(frm);
+    return Promise.resolve();
 }
 
 // ============================================
