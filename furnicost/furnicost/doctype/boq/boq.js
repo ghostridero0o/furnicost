@@ -287,6 +287,33 @@ frappe.ui.form.on("BOQ Item", {
 	form_render(frm, cdt, cdn) {
 		recalc_boq_item(frm, cdt, cdn);
 	},
+	item_name(frm, cdt, cdn) {
+		const row = locals[cdt][cdn];
+		if (!row || !row.item_name) return;
+
+		frappe.call({
+			method: "frappe.client.get_list",
+			args: {
+				doctype: "Furniture Costing",
+				filters: { furniture: row.item_name },
+				fields: ["dvt", "width", "height", "depth", "rate_bg"],
+				limit_page_length: 1,
+				order_by: "modified desc",
+			},
+			callback(r) {
+				const rec = (r.message && r.message[0]) || null;
+				if (!rec) return;
+
+				frappe.model.set_value(cdt, cdn, "uom", rec.dvt || "");
+				frappe.model.set_value(cdt, cdn, "length", rec.width || 0);
+				frappe.model.set_value(cdt, cdn, "height", rec.height || 0);
+				frappe.model.set_value(cdt, cdn, "depth", rec.depth || 0);
+				frappe.model.set_value(cdt, cdn, "rate", rec.rate_bg || 0);
+
+				recalc_boq_item(frm, cdt, cdn);
+			},
+		});
+	},
 	uom: recalc_boq_item,
 	length: recalc_boq_item,
 	height: recalc_boq_item,

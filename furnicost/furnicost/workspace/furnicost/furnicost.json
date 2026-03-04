@@ -25,6 +25,16 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "BOQ",
+   "link_count": 0,
+   "link_to": "BOQ",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Furniture Summary",
    "link_count": 0,
    "link_to": "Furniture Summary",
@@ -82,7 +92,7 @@
    "type": "Link"
   }
  ],
- "modified": "2025-09-28 10:32:56.929539",
+ "modified": "2026-03-02 19:23:10.771588",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "FurniCost",

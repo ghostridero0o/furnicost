@@ -7,7 +7,8 @@
  "engine": "InnoDB",
  "field_order": [
   "furniture_part",
-  "qty"
+  "qty",
+  "process_loss"
  ],
  "fields": [
   {
@@ -22,13 +23,19 @@
    "fieldname": "qty",
    "fieldtype": "Int",
    "label": "Quantity"
+  },
+  {
+   "columns": 1,
+   "fieldname": "process_loss",
+   "fieldtype": "Percent",
+   "label": "% Hao H\u1ee5t"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-09-27 13:49:37.553216",
+ "modified": "2026-03-04 19:17:19.944035",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Costing Template Item",

@@ -4,15 +4,15 @@ import frappe
 
 class FurnitureCosting(Document):
     def validate(self):
-        # Tính qty_per_unit + amount cho từng item
-        self.update_qty_per_unit_and_amount()
-
         # Áp dụng dimension logic từ Furniture Part
         for d in self.items:
             if not d.furniture_part:
                 continue
             part = frappe.get_doc("Furniture Part", d.furniture_part)
             self.apply_dimension_logic(d, part)
+
+        # Tính qty_per_unit + amount cho từng item
+        self.update_qty_per_unit_and_amount()
 
         # Tính tổng amount
         self.calculate_cost_breakdown()
@@ -72,7 +72,15 @@ class FurnitureCosting(Document):
             else:
                 d.qty_per_unit = 1
 
-            if d.qty_per_unit < 0:
+            process_loss = flt(d.process_loss) or 0
+            loss_factor = 1 if process_loss >= 100 else (1 - (process_loss / 100.0))
+
+            if loss_factor != 0:
+                d.qty_per_unit = d.qty_per_unit / loss_factor
+            else:
+                d.qty_per_unit = 0
+
+            if d.qty_per_unit < 0 or d.qty_per_unit != d.qty_per_unit or d.qty_per_unit == float("inf"):
                 d.qty_per_unit = 0
 
             d.amount = (d.rate or 0) * d.qty_per_unit * (d.qty or 0)   
@@ -147,8 +155,14 @@ class FurnitureCosting(Document):
 
         self.set("group_items", [])
 
+        total_amount = flt(self.total_amount) or 0
+        margin = flt(self.margin) or 0
+        denom = 1 - (margin / 100.0)
+
         for k, row in grouped.items():
             row["amount"] = row["total_qty"] * row["rate"]
+            row["cost_ratio"] = (row["amount"] / total_amount) * 100 if total_amount > 0 else 0
+            row["price_ratio"] = ((row["amount"] / total_amount) * 100 * denom) if (total_amount > 0 and denom > 0) else 0
             self.append("group_items", row)
     def calculate_cost_breakdown(self):
         # reset
