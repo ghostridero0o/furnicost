@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2025-10-02 10:00:00.000000",
+ "creation": "2025-10-02 10:00:00",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
@@ -24,9 +24,10 @@
   {
    "columns": 1,
    "fieldname": "item_name",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Hạng mục",
+   "label": "H\u1ea1ng m\u1ee5c",
+   "options": "Furniture Costing",
    "reqd": 1
   },
   {
@@ -34,19 +35,19 @@
    "fieldname": "material_description",
    "fieldtype": "Small Text",
    "in_list_view": 1,
-   "label": "Mô tả vật liệu"
+   "label": "M\u00f4 t\u1ea3 v\u1eadt li\u1ec7u"
   },
   {
    "fieldname": "origin",
    "fieldtype": "Data",
-   "label": "Sản xuất/Xuất xứ"
+   "label": "S\u1ea3n xu\u1ea5t/Xu\u1ea5t x\u1ee9"
   },
   {
    "columns": 1,
    "fieldname": "length",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Dài (mm)",
+   "label": "D\u00e0i (mm)",
    "precision": "3"
   },
   {
@@ -62,7 +63,7 @@
    "fieldname": "depth",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Sâu (mm)",
+   "label": "S\u00e2u (mm)",
    "precision": "3"
   },
   {
@@ -70,7 +71,7 @@
    "fieldname": "qty",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Số lượng",
+   "label": "S\u1ed1 l\u01b0\u1ee3ng",
    "precision": "3"
   },
   {
@@ -78,7 +79,7 @@
    "fieldname": "uom",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Đơn vị",
+   "label": "\u0110\u01a1n v\u1ecb",
    "options": "UOM"
   },
   {
@@ -86,40 +87,41 @@
    "fieldname": "weight_rc",
    "fieldtype": "Float",
    "in_list_view": 1,
-   "label": "Khối lượng",
-   "precision": "3"
+   "label": "Kh\u1ed1i l\u01b0\u1ee3ng",
+   "precision": "3",
+   "read_only": 1
   },
   {
    "columns": 1,
    "fieldname": "rate",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Đơn giá"
+   "label": "\u0110\u01a1n gi\u00e1"
   },
   {
    "columns": 1,
    "fieldname": "amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Thành tiền",
+   "label": "Th\u00e0nh ti\u1ec1n",
    "read_only": 1
   },
   {
    "fieldname": "image",
    "fieldtype": "Attach Image",
-   "label": "Ảnh minh họa"
+   "label": "\u1ea2nh minh h\u1ecda"
   },
   {
    "fieldname": "notes",
    "fieldtype": "Small Text",
-   "label": "Ghi chú"
+   "label": "Ghi ch\u00fa"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-10-02 10:00:00.000000",
+ "modified": "2026-03-04 21:33:21.386194",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "BOQ Item",

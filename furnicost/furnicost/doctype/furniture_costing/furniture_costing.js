@@ -14,6 +14,7 @@ frappe.ui.form.on("Furniture Costing", {
                             const row = frm.add_child("items");
                             row.furniture_part = d.furniture_part;
                             row.qty = d.qty;
+                            row.process_loss = d.process_loss;
                         });
                         frm.refresh_field("items");
                         update_group_items(frm);
@@ -32,6 +33,9 @@ frappe.ui.form.on("Furniture Costing", {
     },
 
     validate(frm) {
+        (frm.doc.items || []).forEach(d => {
+            recalc_and_group(frm, d.doctype, d.name, true);
+        });
         update_group_items(frm);
     },
 
@@ -143,6 +147,7 @@ frappe.ui.form.on("Costing Items", {
     height:        recalc_and_group,
     depth:         recalc_and_group,
     qty_per_unit:  recalc_and_group,
+    process_loss:  recalc_and_group,
     qty:           recalc_and_group,
     rate:          recalc_and_group
 });
@@ -166,12 +171,14 @@ function calculate_rate_bg(frm) {
 // =====================
 // Helper: Recalc & Group
 // =====================
-function recalc_and_group(frm, cdt, cdn) {
+function recalc_and_group(frm, cdt, cdn, skip_group) {
     const row = locals[cdt][cdn];
     if (!row) return;
 
     let qty_per_unit = 1;
     const uom = String(row.uom || "").toLowerCase();
+    const process_loss = Number(row.process_loss) || 0;
+    const loss_factor = 1 - (process_loss / 100);
 
     if (uom === "m2") {
         qty_per_unit = ((row.width || 0) * (row.height || 0)) / 1_000_000;
@@ -181,14 +188,20 @@ function recalc_and_group(frm, cdt, cdn) {
         qty_per_unit = ((row.width || 0) * (row.height || 0) * (row.depth || 0)) / 1_000_000_000;
     }
 
-    if (qty_per_unit < 0 || isNaN(qty_per_unit)) qty_per_unit = 0;
+    if (loss_factor <= 0) {
+        // Ignore process_loss when >= 100%
+        qty_per_unit = qty_per_unit;
+    } else {
+        qty_per_unit = qty_per_unit / loss_factor;
+        if (qty_per_unit < 0 || isNaN(qty_per_unit) || !isFinite(qty_per_unit)) qty_per_unit = 0;
+    }
 
     frappe.model.set_value(cdt, cdn, "qty_per_unit", qty_per_unit);
 
     const amount = (Number(row.rate) || 0) * qty_per_unit * (Number(row.qty) || 0);
     frappe.model.set_value(cdt, cdn, "amount", amount);
 
-    update_group_items(frm);
+    if (!skip_group) update_group_items(frm);
 }
 
 
@@ -348,8 +361,16 @@ function update_group_items(frm) {
 
     frm.clear_table("group_items");
 
+    const total_amount = Number(frm.doc.total_amount) || 0;
+    const margin = Number(frm.doc.margin) || 0;
+    const denom = 1 - (margin / 100);
+
     Object.values(grouped).forEach(row => {
         row.amount = row.total_qty * row.rate;
+        row.cost_ratio = total_amount > 0 ? (row.amount / total_amount) * 100 : 0;
+        row.price_ratio = (total_amount > 0 && denom > 0)
+            ? ((row.amount / total_amount) * 100) * denom
+            : 0;
         frm.add_child("group_items", row);
     });
 
