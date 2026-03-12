@@ -267,7 +267,7 @@ function addSelectedItemsToForm(frm, items) {
 	items.forEach((item) => {
 		const row = frm.add_child("items");
 		Object.assign(row, {
-			item_name: item.furniture || "",
+			costing_item: item.furniture || "",
 			uom: item.dvt || "",
 			length: item.width || 0,
 			height: item.height || 0,
@@ -287,15 +287,15 @@ frappe.ui.form.on("BOQ Item", {
 	form_render(frm, cdt, cdn) {
 		recalc_boq_item(frm, cdt, cdn);
 	},
-	item_name(frm, cdt, cdn) {
+	costing_item(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];
-		if (!row || !row.item_name) return;
+		if (!row || !row.costing_item) return;
 
 		frappe.call({
 			method: "frappe.client.get_list",
 			args: {
 				doctype: "Furniture Costing",
-				filters: { furniture: row.item_name },
+				filters: { name: row.costing_item },
 				fields: ["dvt", "width", "height", "depth", "rate_bg"],
 				limit_page_length: 1,
 				order_by: "modified desc",
