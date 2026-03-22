@@ -4,6 +4,24 @@ if (window.erpnext?.accounts?.taxes) {
 	erpnext.accounts.taxes.setup_tax_filters("Sales Taxes and Charges");
 }
 
+frappe.require("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+
+const BOQ_EXCEL_COLUMNS = [
+	{ label: "Item Name", fieldname: "item_name" },
+	{ label: "Material Description", fieldname: "material_description" },
+	{ label: "Origin", fieldname: "origin" },
+	{ label: "Length", fieldname: "length" },
+	{ label: "Height", fieldname: "height" },
+	{ label: "Depth", fieldname: "depth" },
+	{ label: "Qty", fieldname: "qty" },
+	{ label: "UOM", fieldname: "uom" },
+	{ label: "Weight RC", fieldname: "weight_rc" },
+	{ label: "Rate", fieldname: "rate" },
+	{ label: "Amount", fieldname: "amount" },
+	{ label: "Image", fieldname: "image" },
+	{ label: "Notes", fieldname: "notes" },
+];
+
 // ==========================
 // BOQ (parent)
 // ==========================
@@ -19,6 +37,7 @@ frappe.ui.form.on("BOQ", {
 	},
 	refresh(frm) {
 		recalc_boq_items(frm);
+		setupBoqItemsExcelActions(frm);
 		if (!frm.is_new()) {
 			frm.add_custom_button(__("Create Sales Order"), () => {
 				frappe.model.open_mapped_doc({
@@ -103,6 +122,179 @@ frappe.ui.form.on("BOQ", {
 		}
 	},
 });
+
+function setupBoqItemsExcelActions(frm) {
+	const grid_field = frm.fields_dict.items;
+	const grid = grid_field?.grid;
+
+	if (!grid || grid.boq_excel_actions_ready) {
+		return;
+	}
+
+	grid.boq_excel_actions_ready = true;
+
+	const $actions = $('<div class="boq-items-excel-actions" style="margin-top: 10px; display: flex; gap: 8px; align-items: center;"></div>');
+	const $download_btn = $(`<button class="btn btn-sm btn-primary">${__("Download Excel")}</button>`);
+	const $upload_btn = $(`<button class="btn btn-sm btn-default">${__("Upload Excel")}</button>`);
+	const $file_input = $('<input type="file" accept=".xlsx,.xls" style="display:none;">');
+
+	$download_btn.on("click", () => downloadBoqItemsExcel(frm));
+	$upload_btn.on("click", () => {
+		if (!window.XLSX) {
+			frappe.msgprint(__("Excel library is still loading. Please try again in a moment."));
+			return;
+		}
+		$file_input.val("");
+		$file_input.trigger("click");
+	});
+	$file_input.on("change", (event) => handleBoqItemsExcelUpload(frm, event));
+
+	$actions.append($download_btn, $upload_btn, $file_input);
+	$(grid.wrapper).append($actions);
+}
+
+function downloadBoqItemsExcel(frm) {
+	if (!window.XLSX) {
+		frappe.msgprint(__("Excel library is still loading. Please try again in a moment."));
+		return;
+	}
+
+	const rows = [BOQ_EXCEL_COLUMNS.map((column) => column.label)];
+	(frm.doc.items || []).forEach((item) => {
+		rows.push(
+			BOQ_EXCEL_COLUMNS.map((column) => {
+				const value = item[column.fieldname];
+				return value == null ? "" : value;
+			})
+		);
+	});
+
+	const workbook = XLSX.utils.book_new();
+	const worksheet = XLSX.utils.aoa_to_sheet(rows);
+	XLSX.utils.book_append_sheet(workbook, worksheet, "BOQ Items");
+	XLSX.writeFile(workbook, `${frm.doc.name || "boq"}_boq_items.xlsx`);
+}
+
+function handleBoqItemsExcelUpload(frm, event) {
+	const file = event.target.files && event.target.files[0];
+	if (!file) {
+		return;
+	}
+
+	if (!window.XLSX) {
+		frappe.msgprint(__("Excel library is still loading. Please try again in a moment."));
+		return;
+	}
+
+	const reader = new FileReader();
+	reader.onload = (load_event) => {
+		try {
+			const workbook = XLSX.read(load_event.target.result, { type: "array" });
+			const sheet_name = workbook.SheetNames[0];
+			const sheet = workbook.Sheets[sheet_name];
+			const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+			const imported_items = parseBoqItemsFromExcel(rows);
+
+			if (!imported_items.length) {
+				frappe.msgprint(__("No valid BOQ Items found in the selected Excel file."));
+				return;
+			}
+
+			const replace_items = () => {
+				frm.clear_table("items");
+				imported_items.forEach((item) => {
+					const child = frm.add_child("items");
+					Object.assign(child, item);
+				});
+				frm.refresh_field("items");
+				recalc_boq_items(frm);
+				frappe.show_alert({
+					message: __("Imported {0} BOQ Items", [imported_items.length]),
+					indicator: "green",
+				});
+			};
+
+			if ((frm.doc.items || []).length) {
+				frappe.confirm(
+					__("Upload will replace the current BOQ Items. Continue?"),
+					replace_items
+				);
+			} else {
+				replace_items();
+			}
+		} catch (error) {
+			console.error("Failed to import BOQ Items from Excel:", error);
+			frappe.msgprint(__("Unable to read the Excel file. Please check the format and try again."));
+		}
+	};
+	reader.readAsArrayBuffer(file);
+}
+
+function parseBoqItemsFromExcel(rows) {
+	if (!rows.length) {
+		return [];
+	}
+
+	const [header_row, ...data_rows] = rows;
+	const header_map = {};
+
+	header_row.forEach((header, index) => {
+		header_map[normalizeBoqExcelHeader(header)] = index;
+	});
+
+	return data_rows
+		.map((row) => buildBoqItemFromExcelRow(row, header_map))
+		.filter((row) => row && hasBoqItemData(row));
+}
+
+function buildBoqItemFromExcelRow(row, header_map) {
+	const item = {};
+
+	BOQ_EXCEL_COLUMNS.forEach((column) => {
+		const index = header_map[normalizeBoqExcelHeader(column.label)];
+		if (index == null) {
+			return;
+		}
+		item[column.fieldname] = row[index];
+	});
+
+	return {
+		item_name: cstr(item.item_name || "").trim(),
+		material_description: cstr(item.material_description || "").trim(),
+		origin: cstr(item.origin || "").trim(),
+		length: flt(item.length),
+		height: flt(item.height),
+		depth: flt(item.depth),
+		qty: flt(item.qty),
+		uom: cstr(item.uom || "").trim(),
+		rate: flt(item.rate),
+		image: cstr(item.image || "").trim(),
+		notes: cstr(item.notes || "").trim(),
+	};
+}
+
+function hasBoqItemData(row) {
+	return Boolean(
+		row.item_name ||
+		row.material_description ||
+		row.origin ||
+		row.length ||
+		row.height ||
+		row.depth ||
+		row.qty ||
+		row.uom ||
+		row.rate ||
+		row.image ||
+		row.notes
+	);
+}
+
+function normalizeBoqExcelHeader(value) {
+	return cstr(value || "")
+		trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "");
+}
 
 // ==========================
 // GET ITEMS FROM FURNITURE COSTING
