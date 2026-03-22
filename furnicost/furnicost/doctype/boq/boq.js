@@ -26,8 +26,11 @@ frappe.ui.form.on("BOQ", {
 					frm: frm,
 				});
 			});
-			frm.add_custom_button(__("Get Items From"), () => {
+			frm.add_custom_button(__("Get Items From Costing"), () => {
 				showSourceDialog(frm);
+			});
+			frm.add_custom_button(__("Get Items From BOQ"), () => {
+				showBoqItemsDialog(frm);
 			});
 		}
 	},
@@ -109,7 +112,7 @@ function showSourceDialog(frm) {
 		[
 			{
 				fieldname: "source_type",
-				label: __("Get From"),
+				label: __("Get From Furniture Costing"),
 				fieldtype: "Select",
 				options: ["Project", "Customer"],
 				reqd: 1,
@@ -278,6 +281,238 @@ function addSelectedItemsToForm(frm, items) {
 	});
 
 	frm.refresh_field("items");
+}
+
+// ==========================
+// GET ITEMS FROM BOQ
+// ==========================
+function showBoqItemsDialog(frm) {
+	const dialog = new frappe.ui.Dialog({
+		title: __("Get Items From BOQ"),
+		fields: [
+			{
+				fieldname: "customer",
+				label: __("Customer"),
+				fieldtype: "Link",
+				options: "Customer",
+			},
+			{
+				fieldname: "project",
+				label: __("Project"),
+				fieldtype: "Link",
+				options: "Project",
+			},
+			{
+				fieldname: "this_boq",
+				label: __("This BOQ"),
+				fieldtype: "Check",
+			},
+			{
+				fieldtype: "Column Break",
+			},
+			{
+				fieldname: "material_description",
+				label: __("Material Description"),
+				fieldtype: "Data",
+			},
+			{
+				fieldname: "item_name",
+				label: __("Item Name"),
+				fieldtype: "Data",
+			},
+			{
+				fieldtype: "Section Break",
+			},
+			{
+				fieldname: "boq_items_html",
+				fieldtype: "HTML",
+			},
+		],
+	});
+
+	dialog.set_secondary_action(() => {
+		applyBoqItemsFilter(dialog, frm);
+	});
+	dialog.set_secondary_action_label(__("Apply Filter"));
+
+	dialog.set_primary_action(__("Get Items"), () => {
+		appendSelectedBoqItems(dialog, frm);
+	});
+
+	dialog.show();
+}
+
+function applyBoqItemsFilter(dialog, frm) {
+	const values = dialog.get_values();
+	if (!values) {
+		return;
+	}
+	dialog._boq_request_id = (dialog._boq_request_id || 0) + 1;
+	const request_id = dialog._boq_request_id;
+	renderBoqItemsLoading(dialog);
+	frappe.call({
+		method: "furnicost.furnicost.doctype.boq.boq.get_boq_items",
+		args: {
+			customer: values.customer || null,
+			project: values.project || null,
+			item_name: values.item_name || null,
+			material_description: values.material_description || null,
+			this_boq: values.this_boq ? 1 : 0,
+			boq_name: frm.doc.name,
+		},
+		callback: (r) => {
+			if (request_id !== dialog._boq_request_id) {
+				return;
+			}
+			const items = (r && r.message) || [];
+			renderBoqItems(dialog, items);
+		},
+	});
+}
+
+function appendSelectedBoqItems(dialog, frm) {
+	const rows = getSelectedBoqItems(dialog);
+
+	if (!rows.length) {
+		frappe.msgprint(__("Please select at least one BOQ Item."));
+		return;
+	}
+
+	rows.forEach((row) => {
+		const child = frm.add_child("items");
+		child.item_name = row.item_name || "";
+		child.material_description = row.material_description || "";
+		child.origin = row.origin || "";
+		child.length = row.length || 0;
+		child.height = row.height || 0;
+		child.depth = row.depth || 0;
+		child.qty = row.qty || 0;
+		child.uom = row.uom || "";
+		child.weight_rc = row.weight_rc || 0;
+		child.rate = row.rate || 0;
+		child.amount = row.amount || 0;
+		child.image = row.image || "";
+		child.notes = row.notes || "";
+		child.costing_item = row.costing_item || "";
+	});
+
+	frm.refresh_field("items");
+	recalc_boq_items(frm);
+	dialog.hide();
+}
+
+function renderBoqItems(dialog, items) {
+	dialog.boq_items = items;
+	const html = buildBoqItemsTableHTML(items);
+	dialog.fields_dict.boq_items_html.$wrapper.html(html);
+}
+
+function renderBoqItemsLoading(dialog) {
+	dialog.boq_items = [];
+	dialog.fields_dict.boq_items_html.$wrapper.html(
+		`<div class="text-muted">Loading...</div>`
+	);
+}
+
+function buildBoqItemsTableHTML(items) {
+	const rows = items
+		.map(
+			(row, index) => `
+        <tr>
+            <td>
+                <input type="checkbox"
+                    data-idx="${index}"
+                    data-item_name="${row.item_name || ""}"
+                    data-material_description="${row.material_description || ""}"
+                    data-origin="${row.origin || ""}"
+                    data-length="${row.length || 0}"
+                    data-height="${row.height || 0}"
+                    data-depth="${row.depth || 0}"
+                    data-qty="${row.qty || 0}"
+                    data-uom="${row.uom || ""}"
+                    data-weight_rc="${row.weight_rc || 0}"
+                    data-rate="${row.rate || 0}"
+                    data-amount="${row.amount || 0}"
+                    data-image="${row.image || ""}"
+                    data-notes="${row.notes || ""}"
+                    data-costing_item="${row.costing_item || ""}">
+            </td>
+            <td>${row.item_name || ""}</td>
+            <td>${row.material_description || ""}</td>
+            <td>${row.qty || 0}</td>
+            <td>${row.uom || ""}</td>
+            <td>${row.rate || 0}</td>
+            <td>${row.amount || 0}</td>
+        </tr>
+    `
+		)
+		.join("");
+
+	return `
+        <style>
+            .boq-items-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+            .boq-items-table th,
+            .boq-items-table td {
+                border: 1px solid #e5e7eb;
+                padding: 6px 8px;
+                text-align: left;
+                vertical-align: top;
+            }
+            .boq-items-table th {
+                background-color: #f5f5f5;
+                font-weight: 600;
+            }
+            .boq-items-table tbody tr:hover {
+                background-color: #f9f9f9;
+            }
+        </style>
+        <table class="boq-items-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">Select</th>
+                    <th>Item Name</th>
+                    <th>Material Description</th>
+                    <th>Qty</th>
+                    <th>UOM</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows}
+            </tbody>
+        </table>
+    `;
+}
+
+function getSelectedBoqItems(dialog) {
+	const selected = [];
+
+	dialog.$wrapper.find('input[type="checkbox"]:checked').each(function () {
+		const $checkbox = $(this);
+		selected.push({
+			item_name: $checkbox.data("item_name"),
+			material_description: $checkbox.data("material_description"),
+			origin: $checkbox.data("origin"),
+			length: flt($checkbox.data("length")),
+			height: flt($checkbox.data("height")),
+			depth: flt($checkbox.data("depth")),
+			qty: flt($checkbox.data("qty")),
+			uom: $checkbox.data("uom"),
+			weight_rc: flt($checkbox.data("weight_rc")),
+			rate: flt($checkbox.data("rate")),
+			amount: flt($checkbox.data("amount")),
+			image: $checkbox.data("image"),
+			notes: $checkbox.data("notes"),
+			costing_item: $checkbox.data("costing_item"),
+		});
+	});
+
+	return selected;
 }
 
 // ==========================
