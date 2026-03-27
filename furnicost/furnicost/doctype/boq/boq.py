@@ -115,3 +115,78 @@ def _set_sales_order_item_custom_name(source, target, source_parent=None):
 		target.custom_item_custom_name = f"{item_name}\n{material_description}".strip()
 	else:
 		target.custom_item_custom_name = item_name
+
+
+@frappe.whitelist()
+def get_boq_items(
+	customer=None,
+	project=None,
+	item_name=None,
+	material_description=None,
+	this_boq=None,
+	boq_name=None,
+):
+	this_boq = frappe.utils.cint(this_boq)
+	filters = [
+		["BOQ Item", "parenttype", "=", "BOQ"],
+		["BOQ Item", "parentfield", "=", "items"],
+	]
+
+	if this_boq:
+		if not boq_name:
+			return []
+		filters.append(["BOQ Item", "parent", "=", boq_name])
+	else:
+		parent_filters = {"docstatus": 1}
+		if customer:
+			parent_filters["customer"] = customer
+		if project:
+			parent_filters["project"] = project
+
+		parents = frappe.get_all(
+			"BOQ",
+			filters=parent_filters,
+			pluck="name",
+			ignore_permissions=True,
+		)
+		if not parents:
+			return []
+
+		filters.append(["BOQ Item", "parent", "in", parents])
+
+	if item_name:
+		filters.append(["BOQ Item", "item_name", "like", f"%{item_name}%"])
+	if material_description:
+		filters.append(
+			[
+				"BOQ Item",
+				"material_description",
+				"like",
+				f"%{material_description}%",
+			]
+		)
+
+	return frappe.get_all(
+		"BOQ Item",
+		filters=filters,
+		fields=[
+			"name",
+			"item_name",
+			"material_description",
+			"origin",
+			"length",
+			"height",
+			"depth",
+			"qty",
+			"uom",
+			"weight_rc",
+			"rate",
+			"amount",
+			"image",
+			"notes",
+			"costing_item",
+		],
+		order_by="parent, idx",
+		limit_page_length=500,
+		ignore_permissions=True,
+	)

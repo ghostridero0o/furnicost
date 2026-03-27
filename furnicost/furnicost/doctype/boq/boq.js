@@ -4,6 +4,24 @@ if (window.erpnext?.accounts?.taxes) {
 	erpnext.accounts.taxes.setup_tax_filters("Sales Taxes and Charges");
 }
 
+frappe.require("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+
+const BOQ_EXCEL_COLUMNS = [
+	{ label: "Item Name", fieldname: "item_name" },
+	{ label: "Material Description", fieldname: "material_description" },
+	{ label: "Origin", fieldname: "origin" },
+	{ label: "Length", fieldname: "length" },
+	{ label: "Height", fieldname: "height" },
+	{ label: "Depth", fieldname: "depth" },
+	{ label: "Qty", fieldname: "qty" },
+	{ label: "UOM", fieldname: "uom" },
+	{ label: "Weight RC", fieldname: "weight_rc" },
+	{ label: "Rate", fieldname: "rate" },
+	{ label: "Amount", fieldname: "amount" },
+	{ label: "Image", fieldname: "image" },
+	{ label: "Notes", fieldname: "notes" },
+];
+
 // ==========================
 // BOQ (parent)
 // ==========================
@@ -19,6 +37,7 @@ frappe.ui.form.on("BOQ", {
 	},
 	refresh(frm) {
 		recalc_boq_items(frm);
+		setupBoqItemsExcelActions(frm);
 		if (!frm.is_new()) {
 			frm.add_custom_button(__("Create Sales Order"), () => {
 				frappe.model.open_mapped_doc({
@@ -26,8 +45,11 @@ frappe.ui.form.on("BOQ", {
 					frm: frm,
 				});
 			});
-			frm.add_custom_button(__("Get Items From"), () => {
+			frm.add_custom_button(__("Get Items From Costing"), () => {
 				showSourceDialog(frm);
+			});
+			frm.add_custom_button(__("Get Items From BOQ"), () => {
+				showBoqItemsDialog(frm);
 			});
 		}
 	},
@@ -101,6 +123,179 @@ frappe.ui.form.on("BOQ", {
 	},
 });
 
+function setupBoqItemsExcelActions(frm) {
+	const grid_field = frm.fields_dict.items;
+	const grid = grid_field?.grid;
+
+	if (!grid || grid.boq_excel_actions_ready) {
+		return;
+	}
+
+	grid.boq_excel_actions_ready = true;
+
+	const $actions = $('<div class="boq-items-excel-actions" style="margin-top: 10px; display: flex; gap: 8px; align-items: center;"></div>');
+	const $download_btn = $(`<button class="btn btn-sm btn-primary">${__("Download Excel")}</button>`);
+	const $upload_btn = $(`<button class="btn btn-sm btn-default">${__("Upload Excel")}</button>`);
+	const $file_input = $('<input type="file" accept=".xlsx,.xls" style="display:none;">');
+
+	$download_btn.on("click", () => downloadBoqItemsExcel(frm));
+	$upload_btn.on("click", () => {
+		if (!window.XLSX) {
+			frappe.msgprint(__("Excel library is still loading. Please try again in a moment."));
+			return;
+		}
+		$file_input.val("");
+		$file_input.trigger("click");
+	});
+	$file_input.on("change", (event) => handleBoqItemsExcelUpload(frm, event));
+
+	$actions.append($download_btn, $upload_btn, $file_input);
+	$(grid.wrapper).append($actions);
+}
+
+function downloadBoqItemsExcel(frm) {
+	if (!window.XLSX) {
+		frappe.msgprint(__("Excel library is still loading. Please try again in a moment."));
+		return;
+	}
+
+	const rows = [BOQ_EXCEL_COLUMNS.map((column) => column.label)];
+	(frm.doc.items || []).forEach((item) => {
+		rows.push(
+			BOQ_EXCEL_COLUMNS.map((column) => {
+				const value = item[column.fieldname];
+				return value == null ? "" : value;
+			})
+		);
+	});
+
+	const workbook = XLSX.utils.book_new();
+	const worksheet = XLSX.utils.aoa_to_sheet(rows);
+	XLSX.utils.book_append_sheet(workbook, worksheet, "BOQ Items");
+	XLSX.writeFile(workbook, `${frm.doc.name || "boq"}_boq_items.xlsx`);
+}
+
+function handleBoqItemsExcelUpload(frm, event) {
+	const file = event.target.files && event.target.files[0];
+	if (!file) {
+		return;
+	}
+
+	if (!window.XLSX) {
+		frappe.msgprint(__("Excel library is still loading. Please try again in a moment."));
+		return;
+	}
+
+	const reader = new FileReader();
+	reader.onload = (load_event) => {
+		try {
+			const workbook = XLSX.read(load_event.target.result, { type: "array" });
+			const sheet_name = workbook.SheetNames[0];
+			const sheet = workbook.Sheets[sheet_name];
+			const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+			const imported_items = parseBoqItemsFromExcel(rows);
+
+			if (!imported_items.length) {
+				frappe.msgprint(__("No valid BOQ Items found in the selected Excel file."));
+				return;
+			}
+
+			const replace_items = () => {
+				frm.clear_table("items");
+				imported_items.forEach((item) => {
+					const child = frm.add_child("items");
+					Object.assign(child, item);
+				});
+				frm.refresh_field("items");
+				recalc_boq_items(frm);
+				frappe.show_alert({
+					message: __("Imported {0} BOQ Items", [imported_items.length]),
+					indicator: "green",
+				});
+			};
+
+			if ((frm.doc.items || []).length) {
+				frappe.confirm(
+					__("Upload will replace the current BOQ Items. Continue?"),
+					replace_items
+				);
+			} else {
+				replace_items();
+			}
+		} catch (error) {
+			console.error("Failed to import BOQ Items from Excel:", error);
+			frappe.msgprint(__("Unable to read the Excel file. Please check the format and try again."));
+		}
+	};
+	reader.readAsArrayBuffer(file);
+}
+
+function parseBoqItemsFromExcel(rows) {
+	if (!rows.length) {
+		return [];
+	}
+
+	const [header_row, ...data_rows] = rows;
+	const header_map = {};
+
+	header_row.forEach((header, index) => {
+		header_map[normalizeBoqExcelHeader(header)] = index;
+	});
+
+	return data_rows
+		.map((row) => buildBoqItemFromExcelRow(row, header_map))
+		.filter((row) => row && hasBoqItemData(row));
+}
+
+function buildBoqItemFromExcelRow(row, header_map) {
+	const item = {};
+
+	BOQ_EXCEL_COLUMNS.forEach((column) => {
+		const index = header_map[normalizeBoqExcelHeader(column.label)];
+		if (index == null) {
+			return;
+		}
+		item[column.fieldname] = row[index];
+	});
+
+	return {
+		item_name: cstr(item.item_name || "").trim(),
+		material_description: cstr(item.material_description || "").trim(),
+		origin: cstr(item.origin || "").trim(),
+		length: flt(item.length),
+		height: flt(item.height),
+		depth: flt(item.depth),
+		qty: flt(item.qty),
+		uom: cstr(item.uom || "").trim(),
+		rate: flt(item.rate),
+		image: cstr(item.image || "").trim(),
+		notes: cstr(item.notes || "").trim(),
+	};
+}
+
+function hasBoqItemData(row) {
+	return Boolean(
+		row.item_name ||
+		row.material_description ||
+		row.origin ||
+		row.length ||
+		row.height ||
+		row.depth ||
+		row.qty ||
+		row.uom ||
+		row.rate ||
+		row.image ||
+		row.notes
+	);
+}
+
+function normalizeBoqExcelHeader(value) {
+	return cstr(value || "")
+		trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "");
+}
+
 // ==========================
 // GET ITEMS FROM FURNITURE COSTING
 // ==========================
@@ -109,7 +304,7 @@ function showSourceDialog(frm) {
 		[
 			{
 				fieldname: "source_type",
-				label: __("Get From"),
+				label: __("Get From Furniture Costing"),
 				fieldtype: "Select",
 				options: ["Project", "Customer"],
 				reqd: 1,
@@ -278,6 +473,238 @@ function addSelectedItemsToForm(frm, items) {
 	});
 
 	frm.refresh_field("items");
+}
+
+// ==========================
+// GET ITEMS FROM BOQ
+// ==========================
+function showBoqItemsDialog(frm) {
+	const dialog = new frappe.ui.Dialog({
+		title: __("Get Items From BOQ"),
+		fields: [
+			{
+				fieldname: "customer",
+				label: __("Customer"),
+				fieldtype: "Link",
+				options: "Customer",
+			},
+			{
+				fieldname: "project",
+				label: __("Project"),
+				fieldtype: "Link",
+				options: "Project",
+			},
+			{
+				fieldname: "this_boq",
+				label: __("This BOQ"),
+				fieldtype: "Check",
+			},
+			{
+				fieldtype: "Column Break",
+			},
+			{
+				fieldname: "material_description",
+				label: __("Material Description"),
+				fieldtype: "Data",
+			},
+			{
+				fieldname: "item_name",
+				label: __("Item Name"),
+				fieldtype: "Data",
+			},
+			{
+				fieldtype: "Section Break",
+			},
+			{
+				fieldname: "boq_items_html",
+				fieldtype: "HTML",
+			},
+		],
+	});
+
+	dialog.set_secondary_action(() => {
+		applyBoqItemsFilter(dialog, frm);
+	});
+	dialog.set_secondary_action_label(__("Apply Filter"));
+
+	dialog.set_primary_action(__("Get Items"), () => {
+		appendSelectedBoqItems(dialog, frm);
+	});
+
+	dialog.show();
+}
+
+function applyBoqItemsFilter(dialog, frm) {
+	const values = dialog.get_values();
+	if (!values) {
+		return;
+	}
+	dialog._boq_request_id = (dialog._boq_request_id || 0) + 1;
+	const request_id = dialog._boq_request_id;
+	renderBoqItemsLoading(dialog);
+	frappe.call({
+		method: "furnicost.furnicost.doctype.boq.boq.get_boq_items",
+		args: {
+			customer: values.customer || null,
+			project: values.project || null,
+			item_name: values.item_name || null,
+			material_description: values.material_description || null,
+			this_boq: values.this_boq ? 1 : 0,
+			boq_name: frm.doc.name,
+		},
+		callback: (r) => {
+			if (request_id !== dialog._boq_request_id) {
+				return;
+			}
+			const items = (r && r.message) || [];
+			renderBoqItems(dialog, items);
+		},
+	});
+}
+
+function appendSelectedBoqItems(dialog, frm) {
+	const rows = getSelectedBoqItems(dialog);
+
+	if (!rows.length) {
+		frappe.msgprint(__("Please select at least one BOQ Item."));
+		return;
+	}
+
+	rows.forEach((row) => {
+		const child = frm.add_child("items");
+		child.item_name = row.item_name || "";
+		child.material_description = row.material_description || "";
+		child.origin = row.origin || "";
+		child.length = row.length || 0;
+		child.height = row.height || 0;
+		child.depth = row.depth || 0;
+		child.qty = row.qty || 0;
+		child.uom = row.uom || "";
+		child.weight_rc = row.weight_rc || 0;
+		child.rate = row.rate || 0;
+		child.amount = row.amount || 0;
+		child.image = row.image || "";
+		child.notes = row.notes || "";
+		child.costing_item = row.costing_item || "";
+	});
+
+	frm.refresh_field("items");
+	recalc_boq_items(frm);
+	dialog.hide();
+}
+
+function renderBoqItems(dialog, items) {
+	dialog.boq_items = items;
+	const html = buildBoqItemsTableHTML(items);
+	dialog.fields_dict.boq_items_html.$wrapper.html(html);
+}
+
+function renderBoqItemsLoading(dialog) {
+	dialog.boq_items = [];
+	dialog.fields_dict.boq_items_html.$wrapper.html(
+		`<div class="text-muted">Loading...</div>`
+	);
+}
+
+function buildBoqItemsTableHTML(items) {
+	const rows = items
+		.map(
+			(row, index) => `
+        <tr>
+            <td>
+                <input type="checkbox"
+                    data-idx="${index}"
+                    data-item_name="${row.item_name || ""}"
+                    data-material_description="${row.material_description || ""}"
+                    data-origin="${row.origin || ""}"
+                    data-length="${row.length || 0}"
+                    data-height="${row.height || 0}"
+                    data-depth="${row.depth || 0}"
+                    data-qty="${row.qty || 0}"
+                    data-uom="${row.uom || ""}"
+                    data-weight_rc="${row.weight_rc || 0}"
+                    data-rate="${row.rate || 0}"
+                    data-amount="${row.amount || 0}"
+                    data-image="${row.image || ""}"
+                    data-notes="${row.notes || ""}"
+                    data-costing_item="${row.costing_item || ""}">
+            </td>
+            <td>${row.item_name || ""}</td>
+            <td>${row.material_description || ""}</td>
+            <td>${row.qty || 0}</td>
+            <td>${row.uom || ""}</td>
+            <td>${row.rate || 0}</td>
+            <td>${row.amount || 0}</td>
+        </tr>
+    `
+		)
+		.join("");
+
+	return `
+        <style>
+            .boq-items-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+            .boq-items-table th,
+            .boq-items-table td {
+                border: 1px solid #e5e7eb;
+                padding: 6px 8px;
+                text-align: left;
+                vertical-align: top;
+            }
+            .boq-items-table th {
+                background-color: #f5f5f5;
+                font-weight: 600;
+            }
+            .boq-items-table tbody tr:hover {
+                background-color: #f9f9f9;
+            }
+        </style>
+        <table class="boq-items-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">Select</th>
+                    <th>Item Name</th>
+                    <th>Material Description</th>
+                    <th>Qty</th>
+                    <th>UOM</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows}
+            </tbody>
+        </table>
+    `;
+}
+
+function getSelectedBoqItems(dialog) {
+	const selected = [];
+
+	dialog.$wrapper.find('input[type="checkbox"]:checked').each(function () {
+		const $checkbox = $(this);
+		selected.push({
+			item_name: $checkbox.data("item_name"),
+			material_description: $checkbox.data("material_description"),
+			origin: $checkbox.data("origin"),
+			length: flt($checkbox.data("length")),
+			height: flt($checkbox.data("height")),
+			depth: flt($checkbox.data("depth")),
+			qty: flt($checkbox.data("qty")),
+			uom: $checkbox.data("uom"),
+			weight_rc: flt($checkbox.data("weight_rc")),
+			rate: flt($checkbox.data("rate")),
+			amount: flt($checkbox.data("amount")),
+			image: $checkbox.data("image"),
+			notes: $checkbox.data("notes"),
+			costing_item: $checkbox.data("costing_item"),
+		});
+	});
+
+	return selected;
 }
 
 // ==========================
