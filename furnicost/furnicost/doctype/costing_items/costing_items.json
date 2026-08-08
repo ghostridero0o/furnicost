@@ -13,13 +13,16 @@
   "depth",
   "width",
   "height",
-  "qty_per_unit",
-  "process_loss",
+  "unit",
   "qty",
+  "process_loss",
   "amount",
-  "stock_uom",
+  "qty_per_unit",
+  "manual_qty",
   "conversion_factor",
-  "cost_type"
+  "cost_type",
+  "column_break_jyjx",
+  "stock_uom"
  ],
  "fields": [
   {
@@ -28,8 +31,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Furniture Part Name",
-   "options": "Furniture Part",
-   "reqd": 1
+   "options": "Furniture Part"
   },
   {
    "columns": 1,
@@ -79,17 +81,32 @@
   {
    "fieldname": "qty_per_unit",
    "fieldtype": "Float",
-   "in_list_view": 1,
    "label": "Qty per Unit",
    "read_only": 1
   },
   {
+   "columns": 1,
+   "fieldname": "unit",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Unit"
+  },
+  {
+   "columns": 1,
    "fieldname": "qty",
    "fieldtype": "Float",
    "in_list_view": 1,
    "label": "Quantity"
   },
   {
+   "default": "0",
+   "fieldname": "manual_qty",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Manual Quantity"
+  },
+  {
+   "columns": 1,
    "fieldname": "amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
@@ -114,16 +131,22 @@
    "read_only": 1
   },
   {
+   "columns": 1,
    "fieldname": "process_loss",
    "fieldtype": "Percent",
+   "in_list_view": 1,
    "label": "% Hao H\u1ee5t"
+  },
+  {
+   "fieldname": "column_break_jyjx",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-03-04 18:59:09.222213",
+ "modified": "2026-08-07 23:37:54.739815",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "Costing Items",

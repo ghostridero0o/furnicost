@@ -53,6 +53,12 @@ class FurnitureCosting(Document):
     def update_qty_per_unit_and_amount(self):
         """Tính qty_per_unit, rate (nếu có conversion), và amount"""
         for d in self.items:
+            # Backward compatibility: Qty used to store the number of units.
+            # Preserve that value in Unit before Qty becomes the calculated total.
+            legacy_qty = flt(d.qty)
+            if not flt(d.unit) and legacy_qty:
+                d.unit = legacy_qty
+
             # Đồng bộ rate nếu uom khác stock_uom
             if d.uom and d.stock_uom and d.uom != d.stock_uom:
                 if d.conversion_factor and d.conversion_factor > 0:
@@ -60,30 +66,36 @@ class FurnitureCosting(Document):
                     if item:
                         d.rate = item * d.conversion_factor
 
-            uom = (d.uom or "").lower()
-            if uom == "m2":
-                d.qty_per_unit = (d.width or 0) * (d.height or 0) / 1_000_000
-            elif uom == "md":
-                d.qty_per_unit = (d.width or 0) / 1000
-            elif uom == "m3":
-                d.qty_per_unit = (
-                    (d.width or 0) * (d.height or 0) * (d.depth or 0) / 1_000_000_000
-                )
-            else:
-                d.qty_per_unit = 1
+            # BOM rows have no Furniture Part and already carry the normalized
+            # BOM requirement in qty_per_unit, so it must not be overwritten.
+            use_direct_qty_per_unit = not d.furniture_part and flt(d.qty_per_unit) > 0
+            if not use_direct_qty_per_unit:
+                uom = (d.uom or "").lower()
+                if uom == "m2":
+                    d.qty_per_unit = (d.width or 0) * (d.height or 0) / 1_000_000
+                elif uom == "md":
+                    d.qty_per_unit = (d.width or 0) / 1000
+                elif uom == "m3":
+                    d.qty_per_unit = (
+                        (d.width or 0) * (d.height or 0) * (d.depth or 0) / 1_000_000_000
+                    )
+                else:
+                    d.qty_per_unit = 1
 
-            process_loss = flt(d.process_loss) or 0
-            loss_factor = 1 if process_loss >= 100 else (1 - (process_loss / 100.0))
+                process_loss = flt(d.process_loss) or 0
+                loss_factor = 1 if process_loss >= 100 else (1 - (process_loss / 100.0))
 
-            if loss_factor != 0:
-                d.qty_per_unit = d.qty_per_unit / loss_factor
-            else:
-                d.qty_per_unit = 0
+                if loss_factor != 0:
+                    d.qty_per_unit = d.qty_per_unit / loss_factor
+                else:
+                    d.qty_per_unit = 0
 
             if d.qty_per_unit < 0 or d.qty_per_unit != d.qty_per_unit or d.qty_per_unit == float("inf"):
                 d.qty_per_unit = 0
 
-            d.amount = (d.rate or 0) * d.qty_per_unit * (d.qty or 0)   
+            if not d.manual_qty:
+                d.qty = flt(d.unit) * flt(d.qty_per_unit)
+            d.amount = flt(d.qty) * flt(d.rate)
 
     def apply_dimension_logic(self, d, part):
         dims = [
@@ -140,7 +152,7 @@ class FurnitureCosting(Document):
 
             # gộp thêm depth
             key = (d.item_code, d.uom, d.rate, d.depth or 0)
-            qty_total = (d.qty_per_unit or 0) * (d.qty or 0)
+            qty_total = flt(d.qty)
 
             if key not in grouped:
                 grouped[key] = {
@@ -174,7 +186,7 @@ class FurnitureCosting(Document):
         for row in self.items:
             amount = flt(row.amount)
 
-            if row.cost_type == "Vật tư chính":
+            if row.cost_type == "Vật tư chính" or (not row.furniture_part and row.item_code):
                 self.vat_tu_chinh += amount
             elif row.cost_type == "Nhân công":
                 self.nc += amount

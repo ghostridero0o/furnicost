@@ -13,7 +13,7 @@ frappe.ui.form.on("Furniture Costing", {
                         r.message.items.forEach(d => {
                             const row = frm.add_child("items");
                             row.furniture_part = d.furniture_part;
-                            row.qty = d.qty;
+                            row.unit = d.qty;
                             row.process_loss = d.process_loss;
                         });
                         frm.refresh_field("items");
@@ -30,17 +30,35 @@ frappe.ui.form.on("Furniture Costing", {
 
     refresh(frm) {
         console.log("[FurniCost] furniture_costing.js loaded for", frm.doc.name);
+
+        frm.add_custom_button(
+            __("Get From BOM"),
+            () => show_get_items_dialog(frm, "BOM"),
+            __("Get Items From")
+        );
+        frm.add_custom_button(
+            __("Get From Costing"),
+            () => show_get_items_dialog(frm, "Furniture Costing"),
+            __("Get Items From")
+        );
+        frm.add_custom_button(__("Update Item Price"), () => update_items_from_price_list(frm));
     },
 
     validate(frm) {
         (frm.doc.items || []).forEach(d => {
-            recalc_and_group(frm, d.doctype, d.name, true);
+            if (cint(d.manual_qty)) {
+                update_row_amount(frm, d.doctype, d.name, true);
+            } else {
+                recalc_and_group(frm, d.doctype, d.name, true);
+            }
         });
         update_group_items(frm);
     },
 
     items_add(frm, cdt, cdn) {
         console.log("[FurniCost] Row added:", cdn);
+        const row = locals[cdt][cdn];
+        if (row && !flt(row.unit)) row.unit = 1;
         update_group_items(frm);
     },
 
@@ -73,6 +91,211 @@ frappe.ui.form.on("Furniture Costing", {
     height: update_kl_bg,
     depth: update_kl_bg
 });
+
+
+// =====================
+// Get Items From
+// =====================
+function show_get_items_dialog(frm, source_doctype) {
+    const is_bom = source_doctype === "BOM";
+    const source_label = is_bom ? __("BOM") : __("Furniture Costing");
+    const dialog = new frappe.ui.Dialog({
+        title: __("Get Items From {0}", [source_label]),
+        fields: [
+            {
+                fieldname: "source_name",
+                label: source_label,
+                fieldtype: "Link",
+                options: source_doctype,
+                reqd: 1,
+                get_query() {
+                    if (is_bom) {
+                        return { filters: { docstatus: 1, is_active: 1 } };
+                    }
+                    const filters = {};
+                    if (!frm.is_new()) filters.name = ["!=", frm.doc.name];
+                    return { filters };
+                },
+                onchange() {
+                    load_source_items(dialog, source_doctype);
+                },
+            },
+            {
+                fieldname: "import_mode",
+                label: __("Import Mode"),
+                fieldtype: "Select",
+                options: ["Append Items", "Replace Items"],
+                default: "Append Items",
+                reqd: 1,
+            },
+            {
+                fieldname: "items_preview",
+                label: __("Items Preview"),
+                fieldtype: "HTML",
+            },
+        ],
+        primary_action_label: __("Get Items"),
+        primary_action(values) {
+            const source_items = dialog.source_items || [];
+            if (!source_items.length) {
+                frappe.msgprint(__("The selected {0} has no items", [source_label]));
+                return;
+            }
+
+            const import_items = () => {
+                if (values.import_mode === "Replace Items") {
+                    frm.clear_table("items");
+                }
+
+                source_items.forEach((source) => {
+                    const row = frm.add_child("items");
+                    row.item_code = source.item_code || "";
+                    row.uom = source.uom || "";
+                    row.rate = flt(source.rate);
+
+                    // Preserve Furniture Part when the source is another
+                    // Furniture Costing document.
+                    if (is_bom) {
+                        row.unit = 1;
+                        row.qty_per_unit = flt(source._qty_per_unit);
+                        row.qty = flt(source._qty_per_unit);
+                    } else {
+                        row.furniture_part = source.furniture_part || "";
+                        row.unit = flt(source.unit) || flt(source.qty) || 1;
+                        row.qty_per_unit = flt(source.qty_per_unit);
+                        row.qty = flt(source.qty);
+                    }
+
+                    recalc_and_group(frm, row.doctype, row.name, true);
+                });
+
+                frm.refresh_field("items");
+                update_group_items(frm);
+                dialog.hide();
+
+                frappe.show_alert({
+                    message: __("Added {0} item(s) from {1}", [source_items.length, source_label]),
+                    indicator: "green",
+                });
+            };
+
+            if (values.import_mode === "Replace Items" && (frm.doc.items || []).length) {
+                frappe.confirm(
+                    __("Replace all existing items with items from {0}?", [source_label]),
+                    import_items
+                );
+                return;
+            }
+
+            import_items();
+        },
+    });
+
+    dialog.source_items = [];
+    render_source_items_preview(dialog, []);
+    dialog.show();
+}
+
+function load_source_items(dialog, source_doctype) {
+    const source_name = dialog.get_value("source_name");
+    if (!source_name) {
+        dialog.source_items = [];
+        render_source_items_preview(dialog, []);
+        return;
+    }
+
+    frappe.db.get_doc(source_doctype, source_name).then((doc) => {
+        const bom_quantity = source_doctype === "BOM" ? (flt(doc.quantity) || 1) : 1;
+        dialog.source_items = (doc.items || [])
+            .filter((row) => row.item_code)
+            .map((row) => ({
+                ...row,
+                _qty_per_unit: source_doctype === "BOM"
+                    ? flt(row.qty) / bom_quantity
+                    : flt(row.qty_per_unit),
+            }));
+        render_source_items_preview(dialog, dialog.source_items);
+    });
+}
+
+function render_source_items_preview(dialog, items) {
+    const wrapper = dialog.fields_dict.items_preview.$wrapper;
+    if (!items.length) {
+        wrapper.html(`<div class="text-muted">${__("Select a source to preview its items")}</div>`);
+        return;
+    }
+
+    const escape = (value) => frappe.utils.escape_html(cstr(value || ""));
+    const rows = items.map((item) => `
+        <tr>
+            <td>${escape(item.item_code)}</td>
+            <td>${escape(item.uom)}</td>
+            <td class="text-right">${format_currency(flt(item.rate))}</td>
+            <td class="text-right">${format_number(flt(item.qty))}</td>
+        </tr>
+    `).join("");
+
+    wrapper.html(`
+        <div style="max-height: 360px; overflow: auto;">
+            <table class="table table-bordered table-hover">
+                <thead>
+                    <tr>
+                        <th>${__("Item Code")}</th>
+                        <th>${__("UOM")}</th>
+                        <th class="text-right">${__("Rate")}</th>
+                        <th class="text-right">${__("Qty")}</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    `);
+}
+
+function update_items_from_price_list(frm) {
+    if (!frm.doc.price_list) {
+        frappe.msgprint(__("Please select a Price List first"));
+        return;
+    }
+
+    const items = (frm.doc.items || []).filter((row) => row.item_code);
+    if (!items.length) {
+        frappe.msgprint(__("There are no items to update"));
+        return;
+    }
+
+    const requests = items.map((row) => {
+        const filters = {
+            item_code: row.item_code,
+            price_list: frm.doc.price_list,
+        };
+        if (row.uom) filters.uom = row.uom;
+
+        return frappe.db
+            .get_value("Item Price", filters, ["price_list_rate", "uom"])
+            .then((result) => {
+                const price = result && result.message;
+                if (!price || price.price_list_rate === null || price.price_list_rate === undefined) {
+                    return false;
+                }
+
+                row.rate = flt(price.price_list_rate);
+                update_row_amount(frm, row.doctype, row.name, true);
+                return true;
+            });
+    });
+
+    Promise.all(requests).then((updated_rows) => {
+        const updated_count = updated_rows.filter(Boolean).length;
+        frm.refresh_field("items");
+        update_group_items(frm);
+
+        frappe.show_alert({
+            message: __("Updated prices for {0} of {1} item(s)", [updated_count, items.length]),
+            indicator: updated_count ? "green" : "orange",
+        });
+    });
+}
 
 
 // =============================
@@ -148,8 +371,14 @@ frappe.ui.form.on("Costing Items", {
     depth:         recalc_and_group,
     qty_per_unit:  recalc_and_group,
     process_loss:  recalc_and_group,
-    qty:           recalc_and_group,
-    rate:          recalc_and_group
+    unit:          recalc_and_group,
+    qty(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+        if (!row) return;
+        row.manual_qty = 1;
+        update_row_amount(frm, cdt, cdn);
+    },
+    rate:          update_row_amount
 });
 
 
@@ -175,32 +404,53 @@ function recalc_and_group(frm, cdt, cdn, skip_group) {
     const row = locals[cdt][cdn];
     if (!row) return;
 
-    let qty_per_unit = 1;
+    const legacy_qty = Number(row.qty) || 0;
+    let unit = Number(row.unit) || 0;
+    if (!unit && legacy_qty) {
+        unit = legacy_qty;
+        row.unit = unit;
+    }
+
+    let qty_per_unit = Number(row.qty_per_unit) || 0;
     const uom = String(row.uom || "").toLowerCase();
     const process_loss = Number(row.process_loss) || 0;
     const loss_factor = 1 - (process_loss / 100);
 
-    if (uom === "m2") {
-        qty_per_unit = ((row.width || 0) * (row.height || 0)) / 1_000_000;
-    } else if (uom === "md") {
-        qty_per_unit = (row.width || 0) / 1000;
-    } else if (uom === "m3") {
-        qty_per_unit = ((row.width || 0) * (row.height || 0) * (row.depth || 0)) / 1_000_000_000;
+    // Rows imported directly from BOM have no Furniture Part. Their normalized
+    // BOM quantity is already the material requirement per one unit.
+    const use_direct_qty_per_unit = !row.furniture_part && qty_per_unit > 0;
+    if (!use_direct_qty_per_unit) {
+        qty_per_unit = 1;
+        if (uom === "m2") {
+            qty_per_unit = ((row.width || 0) * (row.height || 0)) / 1_000_000;
+        } else if (uom === "md") {
+            qty_per_unit = (row.width || 0) / 1000;
+        } else if (uom === "m3") {
+            qty_per_unit = ((row.width || 0) * (row.height || 0) * (row.depth || 0)) / 1_000_000_000;
+        }
+
+        if (loss_factor > 0) {
+            qty_per_unit = qty_per_unit / loss_factor;
+        }
     }
 
-    if (loss_factor <= 0) {
-        // Ignore process_loss when >= 100%
-        qty_per_unit = qty_per_unit;
-    } else {
-        qty_per_unit = qty_per_unit / loss_factor;
-        if (qty_per_unit < 0 || isNaN(qty_per_unit) || !isFinite(qty_per_unit)) qty_per_unit = 0;
-    }
+    if (qty_per_unit < 0 || isNaN(qty_per_unit) || !isFinite(qty_per_unit)) qty_per_unit = 0;
 
-    frappe.model.set_value(cdt, cdn, "qty_per_unit", qty_per_unit);
+    row.qty_per_unit = qty_per_unit;
+    row.qty = unit * qty_per_unit;
+    row.manual_qty = 0;
+    row.amount = row.qty * (Number(row.rate) || 0);
+    frm.refresh_field("items");
 
-    const amount = (Number(row.rate) || 0) * qty_per_unit * (Number(row.qty) || 0);
-    frappe.model.set_value(cdt, cdn, "amount", amount);
+    if (!skip_group) update_group_items(frm);
+}
 
+function update_row_amount(frm, cdt, cdn, skip_group) {
+    const row = locals[cdt][cdn];
+    if (!row) return;
+
+    row.amount = (Number(row.qty) || 0) * (Number(row.rate) || 0);
+    frm.refresh_field("items");
     if (!skip_group) update_group_items(frm);
 }
 
@@ -343,7 +593,7 @@ function update_group_items(frm) {
         if (!d.item_code) return;
 
         const key = `${d.item_code}||${d.uom}||${d.rate || 0}||${d.depth || 0}`;
-        const qty_total = (Number(d.qty_per_unit) || 0) * (Number(d.qty) || 0);
+        const qty_total = Number(d.qty) || 0;
 
         if (!grouped[key]) {
             grouped[key] = {
