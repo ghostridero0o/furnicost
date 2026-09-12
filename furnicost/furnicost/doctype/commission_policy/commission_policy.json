@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:COM-POL-{#####}",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["policy_name", "company", "enabled", "is_default", "valid_from", "valid_to", "calculation_section", "commission_basis", "allow_rate_override", "rules_section", "rules", "creation_defaults_section", "employee_incentive_salary_component", "employee_incentive_expense_account", "employee_incentive_cost_center", "petty_expense_account", "petty_expense_cost_center", "petty_expense_mode_of_payment", "description"],
+ "fields": [
+  {"fieldname":"policy_name","fieldtype":"Data","in_global_search":1,"in_list_view":1,"label":"Policy Name","reqd":1},
+  {"fieldname":"company","fieldtype":"Link","in_list_view":1,"label":"Company","options":"Company","reqd":1},
+  {"default":"1","fieldname":"enabled","fieldtype":"Check","in_list_view":1,"label":"Enabled"},
+  {"default":"0","description":"Used automatically when creating a Project Commission for this period.","fieldname":"is_default","fieldtype":"Check","in_list_view":1,"label":"Default Policy"},
+  {"fieldname":"valid_from","fieldtype":"Date","in_list_view":1,"label":"Valid From","reqd":1},
+  {"fieldname":"valid_to","fieldtype":"Date","in_list_view":1,"label":"Valid To"},
+  {"fieldname":"calculation_section","fieldtype":"Section Break","label":"Calculation"},
+  {"default":"Contract Value (Before Tax)","fieldname":"commission_basis","fieldtype":"Select","label":"Commission Basis","options":"Contract Value (Before Tax)\nContract Value (After Tax)\nInvoiced Revenue\nCollected Amount\nManual Amount","reqd":1},
+  {"default":"0","fieldname":"allow_rate_override","fieldtype":"Check","label":"Allow Rate Override"},
+  {"fieldname":"rules_section","fieldtype":"Section Break","label":"Commission Rates"},
+  {"fieldname":"rules","fieldtype":"Table","label":"Rules","options":"Commission Policy Rule","reqd":1},
+  {"fieldname":"creation_defaults_section","fieldtype":"Section Break","label":"Document Creation Defaults"},
+  {"description":"Earning component used when creating Employee Incentive.","fieldname":"employee_incentive_salary_component","fieldtype":"Link","label":"Employee Incentive Salary Component","options":"Salary Component"},
+  {"description":"Leave empty to use the account configured on the Salary Component for this Company.","fieldname":"employee_incentive_expense_account","fieldtype":"Link","label":"Employee Incentive Expense Account","options":"Account"},
+  {"description":"Leave empty to use the Project or Company default Cost Center.","fieldname":"employee_incentive_cost_center","fieldtype":"Link","label":"Employee Incentive Cost Center","options":"Cost Center"},
+  {"fieldname":"petty_expense_account","fieldtype":"Link","label":"Petty Expense Account","options":"Account"},
+  {"description":"Leave empty to use the Project or Company default Cost Center.","fieldname":"petty_expense_cost_center","fieldtype":"Link","label":"Petty Expense Cost Center","options":"Cost Center"},
+  {"fieldname":"petty_expense_mode_of_payment","fieldtype":"Link","label":"Petty Expense Mode of Payment","options":"Mode of Payment"},
+  {"fieldname":"description","fieldtype":"Small Text","label":"Description"}
+ ],
+ "links": [],
+ "module": "FurniCost",
+ "name": "Commission Policy",
+ "permissions": [
+  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"share":1,"write":1,"role":"System Manager"},
+  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"share":1,"write":1,"role":"Accounts Manager"},
+  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"share":1,"write":1,"role":"Sales Manager"},
+  {"read":1,"role":"Accounts User"},
+  {"read":1,"role":"Sales User"}
+ ],
+ "sort_field": "valid_from",
+ "sort_order": "DESC",
+ "show_title_field_in_link": 1,
+ "title_field": "policy_name"
+}

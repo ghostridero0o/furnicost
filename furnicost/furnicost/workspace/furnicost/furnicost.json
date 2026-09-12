@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"header_1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Furniture Costing</span>\",\"col\":12}},{\"id\":\"eZCeuAM3Fj\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"M7kcLa-m6o\",\"type\":\"card\",\"data\":{\"card_name\":\"D\u1ef1 to\u00e1n n\u1ed9i th\u1ea5t\",\"col\":4}},{\"id\":\"WG4hC43S0O\",\"type\":\"card\",\"data\":{\"card_name\":\"T\u1ed5ng h\u1ee3p\",\"col\":4}}]",
+ "content": "[{\"id\":\"header_1\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Furniture Costing</span>\",\"col\":12}},{\"id\":\"eZCeuAM3Fj\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"M7kcLa-m6o\",\"type\":\"card\",\"data\":{\"card_name\":\"D\u1ef1 to\u00e1n n\u1ed9i th\u1ea5t\",\"col\":4}},{\"id\":\"WG4hC43S0O\",\"type\":\"card\",\"data\":{\"card_name\":\"T\u1ed5ng h\u1ee3p\",\"col\":4}},{\"id\":\"commission_card\",\"type\":\"card\",\"data\":{\"card_name\":\"Commission\",\"col\":4}}]",
  "creation": "2025-08-21 10:00:00",
  "custom_blocks": [],
  "docstatus": 0,
@@ -38,6 +38,55 @@
    "label": "Furniture Summary",
    "link_count": 0,
    "link_to": "Furniture Summary",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Commission",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Project Commission",
+   "link_count": 0,
+   "link_to": "Project Commission",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Commission Policy",
+   "link_count": 0,
+   "link_to": "Commission Policy",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Commission Tier",
+   "link_count": 0,
+   "link_to": "Commission Tier",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Commission Role",
+   "link_count": 0,
+   "link_to": "Commission Role",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -92,7 +141,7 @@
    "type": "Link"
   }
  ],
- "modified": "2026-03-02 19:23:10.771588",
+ "modified": "2026-09-12 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "FurniCost",
  "name": "FurniCost",

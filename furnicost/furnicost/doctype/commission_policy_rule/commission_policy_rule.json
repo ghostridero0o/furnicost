@@ -1,0 +1,20 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["enabled", "commission_tier", "commission_role", "rate", "minimum_commission_amount", "maximum_commission_amount", "notes"],
+ "fields": [
+  {"default":"1","fieldname":"enabled","fieldtype":"Check","in_list_view":1,"label":"Enabled"},
+  {"fieldname":"commission_tier","fieldtype":"Link","in_list_view":1,"label":"Commission Tier","options":"Commission Tier","reqd":1},
+  {"fieldname":"commission_role","fieldtype":"Link","in_list_view":1,"label":"Commission Role","options":"Commission Role","reqd":1},
+  {"fieldname":"rate","fieldtype":"Percent","in_list_view":1,"label":"Rate","non_negative":1,"reqd":1},
+  {"fieldname":"minimum_commission_amount","fieldtype":"Currency","label":"Minimum Commission Amount","non_negative":1},
+  {"description":"Leave empty for no maximum.","fieldname":"maximum_commission_amount","fieldtype":"Currency","label":"Maximum Commission Amount","non_negative":1},
+  {"fieldname":"notes","fieldtype":"Small Text","label":"Notes"}
+ ],
+ "istable": 1,
+ "module": "FurniCost",
+ "name": "Commission Policy Rule",
+ "permissions": []
+}

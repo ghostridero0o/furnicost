@@ -1,0 +1,30 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:COM-ROLE-{#####}",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["role_name", "company", "enabled", "recipient_category", "default_party_type", "description"],
+ "fields": [
+  {"fieldname":"role_name","fieldtype":"Data","in_global_search":1,"in_list_view":1,"label":"Role Name","reqd":1},
+  {"fieldname":"company","fieldtype":"Link","in_list_view":1,"label":"Company","options":"Company","reqd":1},
+  {"default":"1","fieldname":"enabled","fieldtype":"Check","in_list_view":1,"label":"Enabled"},
+  {"fieldname":"recipient_category","fieldtype":"Select","in_list_view":1,"label":"Recipient Category","options":"Internal Employee\nExternal Partner\nConstruction Team\nOther","reqd":1},
+  {"fieldname":"default_party_type","fieldtype":"Select","label":"Default Recipient Type","options":"Employee\nSupplier\nCustomer\nSales Partner"},
+  {"fieldname":"description","fieldtype":"Small Text","label":"Description"}
+ ],
+ "links": [],
+ "module": "FurniCost",
+ "name": "Commission Role",
+ "permissions": [
+  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"share":1,"write":1,"role":"System Manager"},
+  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"share":1,"write":1,"role":"Accounts Manager"},
+  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"share":1,"write":1,"role":"Sales Manager"},
+  {"read":1,"role":"Accounts User"},
+  {"read":1,"role":"Sales User"}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "show_title_field_in_link": 1,
+ "title_field": "role_name"
+}

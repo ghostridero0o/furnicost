@@ -1,0 +1,14 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["project_type"],
+ "fields": [
+  {"fieldname":"project_type","fieldtype":"Link","in_list_view":1,"label":"Project Type","options":"Project Type","reqd":1}
+ ],
+ "istable": 1,
+ "module": "FurniCost",
+ "name": "Commission Tier Project Type",
+ "permissions": []
+}

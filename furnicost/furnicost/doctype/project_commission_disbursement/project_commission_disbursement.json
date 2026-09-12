@@ -1,0 +1,21 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["participant", "commission_role", "recipient_type", "recipient", "reference_doctype", "reference_document", "amount", "posting_date"],
+ "fields": [
+  {"fieldname":"participant","fieldtype":"Data","hidden":1,"label":"Participant","read_only":1},
+  {"fieldname":"commission_role","fieldtype":"Link","in_list_view":1,"label":"Commission Role","options":"Commission Role","read_only":1},
+  {"fieldname":"recipient_type","fieldtype":"Data","label":"Recipient Type","read_only":1},
+  {"fieldname":"recipient","fieldtype":"Data","in_list_view":1,"label":"Recipient","read_only":1},
+  {"fieldname":"reference_doctype","fieldtype":"Link","hidden":1,"label":"Reference DocType","options":"DocType","read_only":1},
+  {"fieldname":"reference_document","fieldtype":"Dynamic Link","in_list_view":1,"label":"Created Document","options":"reference_doctype","read_only":1},
+  {"fieldname":"amount","fieldtype":"Currency","in_list_view":1,"label":"Amount","options":"currency","read_only":1},
+  {"fieldname":"posting_date","fieldtype":"Date","in_list_view":1,"label":"Created Date","read_only":1}
+ ],
+ "istable": 1,
+ "module": "FurniCost",
+ "name": "Project Commission Disbursement",
+ "permissions": []
+}

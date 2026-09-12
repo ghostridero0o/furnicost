@@ -1,0 +1,39 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:COM-TIER-{#####}",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": ["tier_name", "company", "enabled", "priority", "target_gross_margin", "matching_section", "match_by_project_type", "project_types", "match_by_contract_value", "minimum_contract_value", "minimum_inclusive", "maximum_contract_value", "maximum_inclusive", "manual_selection", "description"],
+ "fields": [
+  {"fieldname":"tier_name","fieldtype":"Data","in_global_search":1,"in_list_view":1,"label":"Tier Name","reqd":1},
+  {"fieldname":"company","fieldtype":"Link","in_list_view":1,"label":"Company","options":"Company","reqd":1},
+  {"default":"1","fieldname":"enabled","fieldtype":"Check","in_list_view":1,"label":"Enabled"},
+  {"default":"100","description":"Lower number is matched first.","fieldname":"priority","fieldtype":"Int","in_list_view":1,"label":"Priority","reqd":1},
+  {"fieldname":"target_gross_margin","fieldtype":"Percent","in_list_view":1,"label":"Target Gross Margin"},
+  {"fieldname":"matching_section","fieldtype":"Section Break","label":"Automatic Matching"},
+  {"default":"0","fieldname":"match_by_project_type","fieldtype":"Check","label":"Match by Project Type"},
+  {"depends_on":"eval:doc.match_by_project_type","fieldname":"project_types","fieldtype":"Table","label":"Project Types","options":"Commission Tier Project Type"},
+  {"default":"0","fieldname":"match_by_contract_value","fieldtype":"Check","label":"Match by Contract Value"},
+  {"depends_on":"eval:doc.match_by_contract_value","fieldname":"minimum_contract_value","fieldtype":"Currency","label":"Minimum Contract Value","non_negative":1},
+  {"default":"1","depends_on":"eval:doc.match_by_contract_value","description":"If unchecked, the contract value must be strictly greater than the minimum.","fieldname":"minimum_inclusive","fieldtype":"Check","label":"Include Minimum Value"},
+  {"depends_on":"eval:doc.match_by_contract_value","description":"Leave empty for no upper limit.","fieldname":"maximum_contract_value","fieldtype":"Currency","label":"Maximum Contract Value","non_negative":1},
+  {"default":"1","depends_on":"eval:doc.match_by_contract_value","description":"If unchecked, the contract value must be strictly less than the maximum.","fieldname":"maximum_inclusive","fieldtype":"Check","label":"Include Maximum Value"},
+  {"default":"0","description":"Allow users to choose this tier when it cannot be matched automatically.","fieldname":"manual_selection","fieldtype":"Check","label":"Allow Manual Selection"},
+  {"fieldname":"description","fieldtype":"Small Text","label":"Description"}
+ ],
+ "links": [],
+ "module": "FurniCost",
+ "name": "Commission Tier",
+ "permissions": [
+  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"share":1,"write":1,"role":"System Manager"},
+  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"share":1,"write":1,"role":"Accounts Manager"},
+  {"create":1,"delete":1,"email":1,"export":1,"print":1,"read":1,"report":1,"share":1,"write":1,"role":"Sales Manager"},
+  {"read":1,"role":"Accounts User"},
+  {"read":1,"role":"Sales User"}
+ ],
+ "sort_field": "priority",
+ "sort_order": "ASC",
+ "show_title_field_in_link": 1,
+ "title_field": "tier_name"
+}
