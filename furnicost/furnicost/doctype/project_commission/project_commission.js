@@ -3,7 +3,14 @@ frappe.ui.form.on("Project Commission", {
 		frm.set_query("project", () => ({
 			filters: frm.doc.company ? { company: frm.doc.company } : {},
 		}));
-		frm.set_query("sales_order", () => ({
+		frm.set_query("sales_order", "sales_orders", () => ({
+			filters: {
+				docstatus: 1,
+				...(frm.doc.company ? { company: frm.doc.company } : {}),
+				...(frm.doc.project ? { project: frm.doc.project } : {}),
+			},
+		}));
+		frm.set_query("sales_invoice", "sales_invoices", () => ({
 			filters: {
 				docstatus: 1,
 				...(frm.doc.company ? { company: frm.doc.company } : {}),
@@ -39,21 +46,31 @@ frappe.ui.form.on("Project Commission", {
 		if (!frm.doc.company) return;
 		if (frm.doc.policy) frm.set_value("policy", null);
 		if (frm.doc.commission_tier) frm.set_value("commission_tier", null);
+		frm.clear_table("sales_orders");
+		frm.clear_table("sales_invoices");
 		frm.clear_table("participants");
+		frm.refresh_field("sales_orders");
+		frm.refresh_field("sales_invoices");
 		frm.refresh_field("participants");
 	},
 
 	project(frm) {
 		if (!frm.doc.project) {
-			frm.set_value("sales_order", null);
+			frm.clear_table("sales_orders");
+			frm.clear_table("sales_invoices");
+			frm.refresh_field("sales_orders");
+			frm.refresh_field("sales_invoices");
 			return;
 		}
 		frm.call("set_project_context").then(() => frm.refresh_fields());
 	},
 
-	sales_order(frm) {
-		if (!frm.doc.sales_order) return;
-		frm.call("set_sales_order_context").then(() => frm.refresh_fields());
+	contract_value_source(frm) {
+		if (!frm.doc.project) {
+			frm.set_value("contract_value", 0);
+			return;
+		}
+		frm.call("set_contract_value_source_context").then(() => frm.refresh_fields());
 	},
 
 	policy(frm) {
@@ -69,7 +86,15 @@ frappe.ui.form.on("Project Commission", {
 		frm.clear_table("participants");
 		frm.refresh_field("participants");
 		frappe.db.get_value("Commission Policy", frm.doc.policy, "commission_basis").then((r) => {
-			if (r.message) frm.set_value("commission_basis", r.message.commission_basis);
+			if (!r.message) return;
+			frm.set_value("commission_basis", r.message.commission_basis).then(() => {
+				const has_contract_documents = frm.doc.contract_value_source === "Sales Invoice"
+					? frm.doc.sales_invoices?.length
+					: frm.doc.sales_orders?.length;
+				if (has_contract_documents) {
+					frm.call("set_contract_documents_context").then(() => frm.refresh_fields());
+				}
+			});
 		});
 	},
 
@@ -109,6 +134,30 @@ frappe.ui.form.on("Project Commission", {
 	},
 });
 
+frappe.ui.form.on("Project Commission Sales Order", {
+	sales_order(frm) {
+		update_contract_document_totals(frm);
+	},
+
+	sales_orders_remove(frm) {
+		update_contract_document_totals(frm);
+	},
+});
+
+frappe.ui.form.on("Project Commission Sales Invoice", {
+	sales_invoice(frm) {
+		update_contract_document_totals(frm);
+	},
+
+	sales_invoices_remove(frm) {
+		update_contract_document_totals(frm);
+	},
+});
+
+function update_contract_document_totals(frm) {
+	frm.call("set_contract_documents_context").then(() => frm.refresh_fields());
+}
+
 frappe.ui.form.on("Project Commission Participant", {
 	commission_role(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];
@@ -130,6 +179,10 @@ frappe.ui.form.on("Project Commission Participant", {
 		calculate_commission_row(frm, cdt, cdn);
 	},
 
+	recipient(frm, cdt, cdn) {
+		calculate_commission_row(frm, cdt, cdn);
+	},
+
 	recipient_type(frm) {
 		update_commission_totals(frm);
 	},
@@ -145,9 +198,12 @@ frappe.ui.form.on("Project Commission Participant", {
 
 function calculate_commission_row(frm, cdt, cdn) {
 	const row = locals[cdt][cdn];
-	let amount = flt(frm.doc.commission_base_amount) * flt(row.applied_rate) / 100;
-	if (flt(row.minimum_commission_amount)) amount = Math.max(amount, flt(row.minimum_commission_amount));
-	if (flt(row.maximum_commission_amount)) amount = Math.min(amount, flt(row.maximum_commission_amount));
+	let amount = 0;
+	if (row.recipient) {
+		amount = flt(frm.doc.commission_base_amount) * flt(row.applied_rate) / 100;
+		if (flt(row.minimum_commission_amount)) amount = Math.max(amount, flt(row.minimum_commission_amount));
+		if (flt(row.maximum_commission_amount)) amount = Math.min(amount, flt(row.maximum_commission_amount));
+	}
 	Promise.all([
 		frappe.model.set_value(cdt, cdn, "commission_amount", amount),
 		frappe.model.set_value(cdt, cdn, "outstanding_amount", amount - flt(row.paid_amount)),

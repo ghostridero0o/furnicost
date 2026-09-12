@@ -6,3 +6,5 @@
 # Patches added in this section will be executed after doctypes are migrated
 furnicost.patches.v1_0.migrate_costing_items_unit
 furnicost.patches.v1_0.set_project_commission_total_incentive
+furnicost.patches.v1_0.migrate_project_commission_sales_orders
+furnicost.patches.v1_0.set_project_commission_contract_value_source

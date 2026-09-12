@@ -6,7 +6,10 @@ from frappe.utils import cint, flt, getdate, nowdate
 
 class ProjectCommission(Document):
 	def before_validate(self):
+		if not self.contract_value_source:
+			self.contract_value_source = "Sales Order"
 		self._set_project_details()
+		self._set_contract_document_details()
 		self._calculate_amounts()
 
 	def validate(self):
@@ -31,6 +34,7 @@ class ProjectCommission(Document):
 
 		policy = frappe.get_doc("Commission Policy", self.policy)
 		self.commission_basis = policy.commission_basis
+		self._set_contract_document_details(force_contract_value=True)
 		if self.commission_basis.startswith("Contract Value"):
 			self.commission_base_amount = self.contract_value
 		if not self.commission_tier:
@@ -55,6 +59,7 @@ class ProjectCommission(Document):
 			return self
 		policy = frappe.get_doc("Commission Policy", self.policy)
 		self.commission_basis = policy.commission_basis
+		self._set_contract_document_details(force_contract_value=True)
 		if self.commission_basis.startswith("Contract Value"):
 			self.commission_base_amount = self.contract_value
 		self.target_gross_margin = frappe.db.get_value(
@@ -74,17 +79,13 @@ class ProjectCommission(Document):
 			if not rule.enabled or rule.commission_tier != self.commission_tier:
 				continue
 			role = frappe.get_cached_doc("Commission Role", rule.commission_role)
-			amount = self._get_commission_amount(
-				self.commission_base_amount, rule.rate,
-				rule.minimum_commission_amount, rule.maximum_commission_amount,
-			)
 			self.append("participants", {
 				"commission_role": rule.commission_role,
 				"recipient_type": role.default_party_type,
 				"policy_rate": rule.rate,
 				"applied_rate": rule.rate,
 				"base_amount": self.commission_base_amount,
-				"commission_amount": amount,
+				"commission_amount": 0,
 				"minimum_commission_amount": rule.minimum_commission_amount,
 				"maximum_commission_amount": rule.maximum_commission_amount,
 				"notes": rule.notes,
@@ -99,18 +100,39 @@ class ProjectCommission(Document):
 
 	@frappe.whitelist()
 	def set_project_context(self):
-		self._set_project_details(force_sales_order=True)
+		self._set_project_details()
+		if not self.policy:
+			self.policy = self._get_default_policy()
+		if self.policy:
+			self.commission_basis = frappe.db.get_value(
+				"Commission Policy", self.policy, "commission_basis"
+			)
+		self._populate_contract_documents()
+		self._set_contract_document_details(force_contract_value=True)
 		self._match_commission_tier()
 		return self
 
 	@frappe.whitelist()
-	def set_sales_order_context(self):
-		self._set_sales_order_details(force_contract_value=True)
+	def set_contract_value_source_context(self):
+		self._populate_contract_documents()
+		self._set_contract_document_details(force_contract_value=True)
+		self._match_commission_tier()
+		return self
+
+	@frappe.whitelist()
+	def set_contract_documents_context(self):
+		self._set_contract_document_details(force_contract_value=True)
 		self._match_commission_tier()
 		return self
 
 	def _match_commission_tier(self):
-		if not self.company or not self.contract_value:
+		if not self.company:
+			return {"commission_tier": None, "reason": "missing_context"}
+		if not self.contract_value:
+			self.commission_tier = None
+			self.target_gross_margin = None
+			self.set("participants", [])
+			self._calculate_amounts()
 			return {"commission_tier": None, "reason": "missing_context"}
 
 		matched_tier = self._find_matching_tier()
@@ -154,7 +176,7 @@ class ProjectCommission(Document):
 			),
 		}
 
-	def _set_project_details(self, force_sales_order=False):
+	def _set_project_details(self):
 		if not self.posting_date:
 			self.posting_date = nowdate()
 		if not self.project:
@@ -175,38 +197,138 @@ class ProjectCommission(Document):
 			if not self.company:
 				self.company = project.company
 
-		if force_sales_order or not self.sales_order:
-			self.sales_order = self._get_latest_sales_order()
-		self._set_sales_order_details(force_contract_value=force_sales_order)
-
-	def _get_latest_sales_order(self):
-		return frappe.db.get_value(
+	def _populate_sales_orders(self):
+		self.set("sales_orders", [])
+		if not self.project:
+			return
+		for sales_order in frappe.get_all(
 			"Sales Order",
-			{"project": self.project, "docstatus": 1},
-			"name",
-			order_by="transaction_date desc, creation desc",
-		)
+			filters={
+				"project": self.project,
+				"company": self.company,
+				"docstatus": 1,
+			},
+			fields=[
+				"name as sales_order", "transaction_date", "customer",
+				"base_net_total", "base_grand_total",
+			],
+			order_by="transaction_date asc, creation asc",
+		):
+			self.append("sales_orders", sales_order)
+
+	def _populate_sales_invoices(self):
+		self.set("sales_invoices", [])
+		if not self.project:
+			return
+		for sales_invoice in frappe.get_all(
+			"Sales Invoice",
+			filters={
+				"project": self.project,
+				"company": self.company,
+				"docstatus": 1,
+			},
+			fields=[
+				"name as sales_invoice", "posting_date", "customer",
+				"base_net_total", "base_grand_total",
+			],
+			order_by="posting_date asc, creation asc",
+		):
+			self.append("sales_invoices", sales_invoice)
+
+	def _populate_contract_documents(self):
+		if self.contract_value_source == "Sales Invoice":
+			self._populate_sales_invoices()
+		else:
+			self.contract_value_source = "Sales Order"
+			self._populate_sales_orders()
+
+	def _set_contract_document_details(self, force_contract_value=False):
+		if self.contract_value_source == "Sales Invoice":
+			self._set_sales_invoice_details(force_contract_value=force_contract_value)
+		else:
+			self._set_sales_order_details(force_contract_value=force_contract_value)
 
 	def _set_sales_order_details(self, force_contract_value=False):
-		if not self.sales_order:
-			return
-		sales_order = frappe.db.get_value(
-			"Sales Order", self.sales_order,
-			["project", "company", "customer", "customer_name", "base_net_total", "base_grand_total"],
-			as_dict=True,
+		company_currency = (
+			frappe.db.get_value("Company", self.company, "default_currency")
+			if self.company else None
 		)
-		if not sales_order:
-			return
-		if not self.customer:
-			self.customer = sales_order.customer
-		if sales_order.customer_name:
-			self.customer_name = sales_order.customer_name
-		if force_contract_value or not self.contract_value:
-			self.contract_value = (
+		total_contract_value = 0
+		valid_sales_orders = 0
+		for row in self.sales_orders:
+			if not row.sales_order:
+				continue
+			sales_order = frappe.db.get_value(
+				"Sales Order", row.sales_order,
+				[
+					"project", "company", "customer", "customer_name", "transaction_date",
+					"base_net_total", "base_grand_total",
+				],
+				as_dict=True,
+			)
+			if not sales_order:
+				continue
+			row.transaction_date = sales_order.transaction_date
+			row.customer = sales_order.customer
+			row.base_net_total = sales_order.base_net_total
+			row.base_grand_total = sales_order.base_grand_total
+			row.company_currency = company_currency
+			if not self.customer:
+				self.customer = sales_order.customer
+			if not self.customer_name and sales_order.customer_name:
+				self.customer_name = sales_order.customer_name
+			total_contract_value += flt(
 				sales_order.base_grand_total
 				if self.commission_basis == "Contract Value (After Tax)"
 				else sales_order.base_net_total
 			)
+			valid_sales_orders += 1
+
+		if valid_sales_orders or force_contract_value:
+			self.contract_value = total_contract_value
+			if self.commission_basis and self.commission_basis.startswith("Contract Value"):
+				self.commission_base_amount = self.contract_value
+
+	def _set_sales_invoice_details(self, force_contract_value=False):
+		company_currency = (
+			frappe.db.get_value("Company", self.company, "default_currency")
+			if self.company else None
+		)
+		total_contract_value = 0
+		valid_sales_invoices = 0
+		for row in self.sales_invoices:
+			if not row.sales_invoice:
+				continue
+			sales_invoice = frappe.db.get_value(
+				"Sales Invoice", row.sales_invoice,
+				[
+					"project", "company", "customer", "customer_name", "posting_date",
+					"base_net_total", "base_grand_total",
+				],
+				as_dict=True,
+			)
+			if not sales_invoice:
+				continue
+			row.posting_date = sales_invoice.posting_date
+			row.customer = sales_invoice.customer
+			row.base_net_total = sales_invoice.base_net_total
+			row.base_grand_total = sales_invoice.base_grand_total
+			row.company_currency = company_currency
+			if not self.customer:
+				self.customer = sales_invoice.customer
+			if not self.customer_name and sales_invoice.customer_name:
+				self.customer_name = sales_invoice.customer_name
+			total_contract_value += flt(
+				sales_invoice.base_grand_total
+				if self.commission_basis == "Contract Value (After Tax)"
+				else sales_invoice.base_net_total
+			)
+			valid_sales_invoices += 1
+
+		if valid_sales_invoices or force_contract_value:
+			self.contract_value = total_contract_value
+			if self.commission_basis and self.commission_basis.startswith("Contract Value"):
+				self.commission_base_amount = self.contract_value
 
 	def _get_default_policy(self):
 		result = frappe.db.sql("""
@@ -253,7 +375,7 @@ class ProjectCommission(Document):
 		return minimum_matches and maximum_matches
 
 	def _validate_configuration(self):
-		if not self.project or not self.company or not self.policy or not self.commission_tier:
+		if not self.project or not self.company:
 			return
 
 		project_company = frappe.db.get_value("Project", self.project, "company")
@@ -262,20 +384,10 @@ class ProjectCommission(Document):
 				frappe.bold(self.project), frappe.bold(self.company)
 			))
 
-		if self.sales_order:
-			sales_order = frappe.db.get_value(
-				"Sales Order", self.sales_order, ["project", "company", "docstatus"], as_dict=True
-			)
-			if not sales_order or sales_order.docstatus != 1:
-				frappe.throw(_("Sales Order {0} must be submitted.").format(frappe.bold(self.sales_order)))
-			if sales_order.project != self.project:
-				frappe.throw(_("Sales Order {0} is not linked to Project {1}.").format(
-					frappe.bold(self.sales_order), frappe.bold(self.project)
-				))
-			if sales_order.company != self.company:
-				frappe.throw(_("Sales Order {0} does not belong to Company {1}.").format(
-					frappe.bold(self.sales_order), frappe.bold(self.company)
-				))
+		self._validate_contract_documents()
+
+		if not self.policy or not self.commission_tier:
+			return
 
 		policy = frappe.get_doc("Commission Policy", self.policy)
 		if policy.company != self.company:
@@ -294,6 +406,42 @@ class ProjectCommission(Document):
 			frappe.throw(_("Commission Tier {0} is not configured in Policy {1}.").format(
 				frappe.bold(self.commission_tier), frappe.bold(self.policy)
 			))
+
+	def _validate_contract_documents(self):
+		if self.contract_value_source == "Sales Invoice":
+			rows = self.sales_invoices
+			doctype = "Sales Invoice"
+			link_field = "sales_invoice"
+		else:
+			rows = self.sales_orders
+			doctype = "Sales Order"
+			link_field = "sales_order"
+
+		seen_documents = set()
+		for row in rows:
+			document_name = row.get(link_field)
+			if not document_name:
+				continue
+			if document_name in seen_documents:
+				frappe.throw(_("Row {0}: {1} {2} is duplicated.").format(
+					row.idx, _(doctype), frappe.bold(document_name)
+				))
+			seen_documents.add(document_name)
+			document = frappe.db.get_value(
+				doctype, document_name, ["project", "company", "docstatus"], as_dict=True
+			)
+			if not document or document.docstatus != 1:
+				frappe.throw(_("Row {0}: {1} {2} must be submitted.").format(
+					row.idx, _(doctype), frappe.bold(document_name)
+				))
+			if document.project != self.project:
+				frappe.throw(_("Row {0}: {1} {2} is not linked to Project {3}.").format(
+					row.idx, _(doctype), frappe.bold(document_name), frappe.bold(self.project)
+				))
+			if document.company != self.company:
+				frappe.throw(_("Row {0}: {1} {2} does not belong to Company {3}.").format(
+					row.idx, _(doctype), frappe.bold(document_name), frappe.bold(self.company)
+				))
 
 	def _validate_participants(self):
 		if not self.policy or not self.commission_tier:
@@ -329,9 +477,12 @@ class ProjectCommission(Document):
 		for row in self.participants:
 			row.base_amount = self.commission_base_amount
 			row.rate_overridden = cint(flt(row.applied_rate) != flt(row.policy_rate))
-			row.commission_amount = self._get_commission_amount(
-				row.base_amount, row.applied_rate,
-				row.minimum_commission_amount, row.maximum_commission_amount,
+			row.commission_amount = (
+				self._get_commission_amount(
+					row.base_amount, row.applied_rate,
+					row.minimum_commission_amount, row.maximum_commission_amount,
+				)
+				if row.recipient else 0
 			)
 			row.outstanding_amount = flt(row.commission_amount) - flt(row.paid_amount)
 			self.total_commission += flt(row.commission_amount)

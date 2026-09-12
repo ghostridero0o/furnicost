@@ -1,0 +1,19 @@
+{
+ "actions": [],
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": ["sales_order", "transaction_date", "customer", "base_net_total", "base_grand_total", "company_currency"],
+ "fields": [
+  {"fieldname":"sales_order","fieldtype":"Link","in_list_view":1,"label":"Sales Order","options":"Sales Order","reqd":1},
+  {"fieldname":"transaction_date","fieldtype":"Date","in_list_view":1,"label":"Transaction Date","read_only":1},
+  {"fieldname":"customer","fieldtype":"Link","in_list_view":1,"label":"Customer","options":"Customer","read_only":1},
+  {"fieldname":"base_net_total","fieldtype":"Currency","in_list_view":1,"label":"Net Total","options":"company_currency","read_only":1},
+  {"fieldname":"base_grand_total","fieldtype":"Currency","in_list_view":1,"label":"Grand Total","options":"company_currency","read_only":1},
+  {"fieldname":"company_currency","fieldtype":"Link","hidden":1,"label":"Company Currency","options":"Currency","read_only":1}
+ ],
+ "istable": 1,
+ "module": "FurniCost",
+ "name": "Project Commission Sales Order",
+ "permissions": []
+}

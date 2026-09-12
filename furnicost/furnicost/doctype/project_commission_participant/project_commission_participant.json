@@ -7,7 +7,7 @@
  "fields": [
   {"fieldname":"commission_role","fieldtype":"Link","in_list_view":1,"label":"Commission Role","options":"Commission Role","reqd":1},
   {"fieldname":"recipient_type","fieldtype":"Select","in_list_view":1,"label":"Recipient Type","options":"Employee\nSupplier\nCustomer\nSales Partner","reqd":1},
-  {"fieldname":"recipient","fieldtype":"Dynamic Link","in_list_view":1,"label":"Recipient","options":"recipient_type","reqd":1},
+  {"fieldname":"recipient","fieldtype":"Dynamic Link","in_list_view":1,"label":"Recipient","options":"recipient_type"},
   {"fieldname":"recipient_name","fieldtype":"Data","label":"Recipient Name"},
   {"fieldname":"policy_rate","fieldtype":"Percent","label":"Policy Rate","read_only":1},
   {"fieldname":"applied_rate","fieldtype":"Percent","in_list_view":1,"label":"Applied Rate","non_negative":1,"reqd":1},
