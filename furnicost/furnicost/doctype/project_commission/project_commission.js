@@ -29,6 +29,7 @@ frappe.ui.form.on("Project Commission", {
 	},
 
 	refresh(frm) {
+		register_recipient_link_titles(frm);
 		if (frm.doc.docstatus !== 1) return;
 		frm.add_custom_button(
 			__("Employee Incentive"),
@@ -180,7 +181,8 @@ frappe.ui.form.on("Project Commission Participant", {
 	},
 
 	recipient(frm, cdt, cdn) {
-		calculate_commission_row(frm, cdt, cdn);
+		const row = locals[cdt][cdn];
+		set_recipient_name(frm, row).then(() => calculate_commission_row(frm, cdt, cdn));
 	},
 
 	recipient_type(frm) {
@@ -208,6 +210,35 @@ function calculate_commission_row(frm, cdt, cdn) {
 		frappe.model.set_value(cdt, cdn, "commission_amount", amount),
 		frappe.model.set_value(cdt, cdn, "outstanding_amount", amount - flt(row.paid_amount)),
 	]).then(() => update_commission_totals(frm));
+}
+
+function set_recipient_name(frm, row) {
+	if (!row.recipient_type || !row.recipient) {
+		return frappe.model.set_value(row.doctype, row.name, "recipient_name", null);
+	}
+	const name_fields = {
+		Employee: "employee_name",
+		Supplier: "supplier_name",
+		Customer: "customer_name",
+		"Sales Partner": "partner_name",
+	};
+	const name_field = name_fields[row.recipient_type];
+	if (!name_field) return Promise.resolve();
+	return frappe.db.get_value(row.recipient_type, row.recipient, name_field).then((r) => {
+		const recipient_name = r.message?.[name_field] || row.recipient;
+		frappe.utils.add_link_title(row.recipient_type, row.recipient, recipient_name);
+		return frappe.model.set_value(row.doctype, row.name, "recipient_name", recipient_name)
+			.then(() => frm.refresh_field("participants"));
+	});
+}
+
+function register_recipient_link_titles(frm) {
+	for (const row of frm.doc.participants || []) {
+		if (row.recipient_type && row.recipient && row.recipient_name) {
+			frappe.utils.add_link_title(row.recipient_type, row.recipient, row.recipient_name);
+		}
+	}
+	frm.refresh_field("participants");
 }
 
 function update_commission_totals(frm) {

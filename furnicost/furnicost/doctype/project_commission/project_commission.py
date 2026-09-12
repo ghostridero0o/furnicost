@@ -10,6 +10,7 @@ class ProjectCommission(Document):
 			self.contract_value_source = "Sales Order"
 		self._set_project_details()
 		self._set_contract_document_details()
+		self._set_recipient_names()
 		self._calculate_amounts()
 
 	def validate(self):
@@ -286,7 +287,7 @@ class ProjectCommission(Document):
 
 		if valid_sales_orders or force_contract_value:
 			self.contract_value = total_contract_value
-			if self.commission_basis and self.commission_basis.startswith("Contract Value"):
+			if force_contract_value and self.commission_basis and self.commission_basis.startswith("Contract Value"):
 				self.commission_base_amount = self.contract_value
 
 	def _set_sales_invoice_details(self, force_contract_value=False):
@@ -327,8 +328,15 @@ class ProjectCommission(Document):
 
 		if valid_sales_invoices or force_contract_value:
 			self.contract_value = total_contract_value
-			if self.commission_basis and self.commission_basis.startswith("Contract Value"):
+			if force_contract_value and self.commission_basis and self.commission_basis.startswith("Contract Value"):
 				self.commission_base_amount = self.contract_value
+
+	def _set_recipient_names(self):
+		for row in self.participants:
+			row.recipient_name = (
+				_get_recipient_name(row.recipient_type, row.recipient)
+				if row.recipient_type and row.recipient else None
+			)
 
 	def _get_default_policy(self):
 		result = frappe.db.sql("""
@@ -462,8 +470,6 @@ class ProjectCommission(Document):
 				frappe.throw(_("Row {0}: Commission Role does not belong to Company {1}.").format(
 					row.idx, frappe.bold(self.company)
 				))
-			if flt(row.paid_amount) > flt(row.commission_amount):
-				frappe.throw(_("Row {0}: Paid Amount cannot exceed Commission Amount.").format(row.idx))
 			if row.rate_overridden:
 				if not policy.allow_rate_override:
 					frappe.throw(_("Row {0}: the selected Policy does not allow rate overrides.").format(row.idx))
