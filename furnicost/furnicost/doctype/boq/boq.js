@@ -7,6 +7,7 @@ if (window.erpnext?.accounts?.taxes) {
 frappe.require("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
 
 const BOQ_EXCEL_COLUMNS = [
+	{ label: "Item Code", fieldname: "item_code" },
 	{ label: "Item Name", fieldname: "item_name" },
 	{ label: "Material Description", fieldname: "material_description" },
 	{ label: "Origin", fieldname: "origin" },
@@ -45,12 +46,17 @@ frappe.ui.form.on("BOQ", {
 					frm: frm,
 				});
 			});
-			frm.add_custom_button(__("Get Items From Costing"), () => {
+			frm.add_custom_button(__("Costing"), () => {
 				showSourceDialog(frm);
-			});
-			frm.add_custom_button(__("Get Items From BOQ"), () => {
+			}, __("Get Items From"));
+			frm.add_custom_button(__("BOQ"), () => {
 				showBoqItemsDialog(frm);
-			});
+			}, __("Get Items From"));
+		}
+		if (frm.doc.docstatus === 0 && frm.perm?.some((permission) => permission.write)) {
+			frm.add_custom_button(__("Standard Price List"), () => {
+				showStandardPriceListDialog(frm);
+			}, __("Get Items From"));
 		}
 	},
 	customer(frm) {
@@ -122,6 +128,227 @@ frappe.ui.form.on("BOQ", {
 		}
 	},
 });
+
+// Select child rows from a Standard Price List.
+function showStandardPriceListDialog(frm) {
+	frappe.prompt([
+		{ fieldname: "price_list", fieldtype: "Link", options: "Standard Price List",
+			label: __("Standard Price List"), reqd: 1, get_query: () => ({ filters: { disabled: 0 } }) },
+	], (values) => {
+		frappe.call({
+			method: "frappe.client.get",
+			args: { doctype: "Standard Price List", name: values.price_list },
+			callback(r) {
+				const doc = r.message;
+				if (!doc || doc.disabled) {
+					frappe.msgprint(__("This Standard Price List is unavailable."));
+					return;
+				}
+				showPriceListItemsDialog(frm, { title: doc.title || doc.name, items: doc.items || [] });
+			},
+		});
+	}, __("Select Standard Price List"), __("Continue"));
+}
+
+function showPriceListItemsDialog(frm, price_list) {
+	const selected = new Map();
+	const page_size = 50;
+	let start = 0;
+	let records = [];
+	const all_records = price_list.items;
+	let column_filters = {};
+	let sort = { field: "item_code", direction: 1 };
+	const filter_fields = [
+		["item_name", "Item Name"],
+		["item_code", "Item Code"],
+		["category", "Hạng mục"],
+		["carcass_material", "Vật liệu thùng"],
+		["door_material", "Vật liệu cánh"],
+	];
+	const dialog = new frappe.ui.Dialog({
+		title: __("Standard Price List: {0}", [price_list.title]),
+		size: "extra-large",
+		fields: [
+			{ fieldtype: "HTML", fieldname: "results" },
+		],
+		primary_action_label: __("Get Items"),
+		primary_action() {
+			if (!selected.size) {
+				frappe.msgprint(__("Please select at least one record"));
+				return;
+			}
+			appendPriceListItems(frm, [...selected.values()]);
+			dialog.hide();
+		},
+	});
+	const wrapper = dialog.fields_dict.results.$wrapper;
+	wrapper.css("position", "relative");
+	const columns = [...filter_fields, ["description", "Mô tả"], ["rate", "Giá bán"]];
+	function render() {
+		const filtered = getStandardPriceView(all_records, column_filters, sort);
+		start = Math.min(start, Math.max(0, Math.ceil(filtered.length / page_size) - 1) * page_size);
+		records = filtered.slice(start, start + page_size);
+		wrapper.empty();
+		const toolbar = $('<div class="mb-2"></div>').appendTo(wrapper);
+		$("<span></span>").text(__("{0} / {1} items · Selected: {2}", [filtered.length, all_records.length, selected.size])).appendTo(toolbar);
+		$('<button type="button" class="btn btn-default btn-xs ml-2"></button>')
+			.text(__("Clear all filters")).on("click", () => { column_filters = {}; start = 0; render(); }).appendTo(toolbar);
+		$("<div class='text-muted small mb-2'></div>").text(__("Use the arrow in each column header to filter or sort.")).appendTo(wrapper);
+		const table = $('<table class="table table-bordered table-hover"></table>');
+		const header = $("<tr></tr>").appendTo($("<thead></thead>").appendTo(table));
+		$("<th></th>").appendTo(header).append(
+			$('<input type="checkbox">').attr("aria-label", __("Select this page"))
+				.prop("checked", records.length > 0 && records.every((row) => selected.has(row.name)))
+				.on("change", function () {
+					records.forEach((row) => this.checked ? selected.set(row.name, row) : selected.delete(row.name));
+					render();
+				})
+		);
+		columns.forEach(([field, label]) => {
+			const th = $("<th></th>").css({ "min-width": field === "rate" ? "130px" : "150px", background: "var(--subtle-fg, #f5f7fa)", position: "sticky", top: 0, "z-index": 1 }).appendTo(header);
+			const heading = $('<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"></div>').appendTo(th);
+			$("<span></span>").text(__(label) + (sort.field === field ? (sort.direction === 1 ? " ↑" : " ↓") : "")).appendTo(heading);
+			$('<button type="button" class="btn btn-xs"></button>')
+				.addClass(column_filters[field] ? "btn-primary" : "btn-default")
+				.text("▾").attr("aria-label", __("Filter {0}", [__(label)]))
+				.on("click", function () { openFilter(field, label, $(this)); }).appendTo(heading);
+		});
+		const body = $("<tbody></tbody>").appendTo(table);
+		records.forEach((row) => {
+			const tr = $("<tr></tr>").appendTo(body);
+			const checkbox = $('<input type="checkbox">')
+				.attr("aria-label", row.item_code).prop("checked", selected.has(row.name));
+			$("<td></td>").append(checkbox).appendTo(tr);
+			checkbox.on("change", () => {
+				checkbox.prop("checked") ? selected.set(row.name, row) : selected.delete(row.name);
+				render();
+			});
+			tr.on("click", (event) => {
+				if (event.target !== checkbox[0]) checkbox.prop("checked", !checkbox.prop("checked")).trigger("change");
+			});
+			columns.forEach(([fieldname]) => {
+				const value = fieldname === "rate" ? formatStandardPriceRate(row.rate) : row[fieldname];
+				$("<td></td>").text(value == null ? "" : value)
+					.css({ "white-space": fieldname === "rate" ? "nowrap" : "pre-wrap", "text-align": fieldname === "rate" ? "right" : "left" })
+					.appendTo(tr);
+			});
+		});
+		wrapper.append($('<div class="table-responsive"></div>').css("max-height", "55vh").append(table));
+		if (!records.length) $("<p></p>").text(__("No items found")).appendTo(wrapper);
+		$('<button type="button" class="btn btn-default btn-sm"></button>').text(__("Previous"))
+			.prop("disabled", start === 0).on("click", () => { start -= page_size; render(); }).appendTo(wrapper);
+		$('<button type="button" class="btn btn-default btn-sm"></button>').text(__("Next"))
+			.prop("disabled", start + page_size >= filtered.length).on("click", () => { start += page_size; render(); }).appendTo(wrapper);
+	}
+	function openFilter(field, label, button) {
+		wrapper.find(".spl-filter-panel").remove();
+		const values = [...new Set(getStandardPriceView(all_records, column_filters, sort, field)
+			.map((row) => standardPriceFilterValue(row, field)))];
+		values.sort((a, b) => field === "rate" ? Number(a) - Number(b) : a.localeCompare(b));
+		const draft = new Set(column_filters[field] || values);
+		const panel = $('<div class="spl-filter-panel"></div>').css({
+			position: "absolute", "z-index": 10, width: "320px", "max-width": "100%",
+			left: Math.max(0, Math.min(button.offset().left - wrapper.offset().left, wrapper.width() - 320)),
+			top: button.offset().top - wrapper.offset().top + button.outerHeight(),
+			background: "var(--fg-color, white)", border: "1px solid var(--border-color, #ddd)",
+			"box-shadow": "0 4px 16px #0002", padding: "12px", "border-radius": "6px",
+		}).attr("role", "dialog").attr("aria-label", __("Filter {0}", [__(label)])).appendTo(wrapper);
+		$("<style></style>").text(`
+			.spl-filter-panel input.spl-filter-choice {
+				appearance: none !important;
+				-webkit-appearance: none !important;
+				flex: 0 0 16px;
+				width: 16px !important;
+				height: 16px !important;
+				min-width: 16px;
+				margin: 3px 0 0;
+				border: 1px solid var(--text-muted, #777) !important;
+				border-radius: 50% !important;
+				background: var(--fg-color, white) !important;
+				box-shadow: none !important;
+				cursor: pointer;
+			}
+			.spl-filter-panel input.spl-filter-choice:checked {
+				background: radial-gradient(circle, var(--text-color, #222) 0 4px, var(--fg-color, white) 4.5px) !important;
+				border-color: var(--text-color, #222) !important;
+			}
+			.spl-filter-panel input.spl-filter-choice:focus-visible {
+				outline: 2px solid var(--primary, #2490ef);
+				outline-offset: 2px;
+			}
+		`).appendTo(panel);
+		$("<strong></strong>").text(__(label)).appendTo(panel);
+		const action = (text, callback) => $('<button type="button" class="btn btn-default btn-xs m-1"></button>').text(__(text)).on("click", callback).appendTo(panel);
+		action("×", () => panel.remove()).attr("aria-label", __("Close"));
+		$("<div></div>").appendTo(panel);
+		action(field === "rate" ? "Smallest to largest" : "Sort A to Z", () => { sort = { field, direction: 1 }; start = 0; render(); });
+		action(field === "rate" ? "Largest to smallest" : "Sort Z to A", () => { sort = { field, direction: -1 }; start = 0; render(); });
+		const search = $('<input type="search" class="form-control input-sm my-2">').attr("placeholder", __("Search values")).attr("aria-label", __("Search values")).appendTo(panel);
+		const list = $("<div></div>").css({ "max-height": "220px", overflow: "auto" }).appendTo(panel);
+		let visible_values = values;
+		function drawValues() {
+			const query = search.val().toLocaleLowerCase();
+			visible_values = values.filter((value) => (field === "rate" ? formatStandardPriceRate(value) + " " + value : value).toLocaleLowerCase().includes(query));
+			list.empty();
+			visible_values.forEach((value) => {
+				const line = $('<label style="display:flex;gap:8px;align-items:flex-start;font-weight:normal"></label>').appendTo(list);
+				$('<input type="checkbox" class="spl-filter-choice">').prop("checked", draft.has(value)).on("change", function () {
+					this.checked ? draft.add(value) : draft.delete(value);
+				}).appendTo(line);
+				$("<span></span>").text(value === "" ? __("(Blanks)") : field === "rate" ? formatStandardPriceRate(value) : value).appendTo(line);
+			});
+			if (!visible_values.length) $("<p class='text-muted'></p>").text(__("No matching values")).appendTo(list);
+		}
+		search.on("input", drawValues);
+		action("Select visible", () => { visible_values.forEach((value) => draft.add(value)); drawValues(); });
+		action("Deselect all", () => { draft.clear(); drawValues(); });
+		$("<hr>").appendTo(panel);
+		action("Apply", () => {
+			// Keep an explicit value set even when every currently available value is checked.
+			column_filters[field] = search.val() ? visible_values.filter((value) => draft.has(value)) : [...draft];
+			start = 0; render();
+		}).addClass("btn-primary");
+		action("Clear column filter", () => { delete column_filters[field]; start = 0; render(); });
+		panel.on("keydown", (event) => { if (event.key === "Escape") { event.stopPropagation(); panel.remove(); button.trigger("focus"); } });
+		drawValues();
+		search.trigger("focus");
+	}
+	dialog.show();
+	render();
+}
+
+function standardPriceFilterValue(row, field) {
+	return String(row[field] == null ? "" : row[field]);
+}
+
+function getStandardPriceView(rows, filters, sort, exclude_field) {
+	return rows.filter((row) => Object.entries(filters).every(([field, values]) =>
+		field === exclude_field || values.includes(standardPriceFilterValue(row, field))
+	)).sort((a, b) => {
+		const order = sort.field === "rate" ? Number(a.rate || 0) - Number(b.rate || 0)
+			: standardPriceFilterValue(a, sort.field).localeCompare(standardPriceFilterValue(b, sort.field));
+		return order * sort.direction || String(a.item_code).localeCompare(String(b.item_code));
+	});
+}
+
+function formatStandardPriceRate(value) {
+	return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(Number(value || 0));
+}
+
+function appendPriceListItems(frm, items) {
+	items.forEach((item) => {
+		Object.assign(frm.add_child("items"), {
+			item_code: item.item_code || "",
+			item_name: item.category,
+			material_description: item.description || "",
+			rate: item.rate || 0,
+			uom: item.uom || "",
+			qty: 1,
+		});
+	});
+	frm.dirty();
+	recalc_boq_items(frm);
+}
 
 function setupBoqItemsExcelActions(frm) {
 	const grid_field = frm.fields_dict.items;
@@ -259,6 +486,7 @@ function buildBoqItemFromExcelRow(row, header_map) {
 	});
 
 	return {
+		item_code: cstr(item.item_code || "").trim(),
 		item_name: cstr(item.item_name || "").trim(),
 		material_description: cstr(item.material_description || "").trim(),
 		origin: cstr(item.origin || "").trim(),
@@ -573,6 +801,7 @@ function appendSelectedBoqItems(dialog, frm) {
 	rows.forEach((row) => {
 		const child = frm.add_child("items");
 		child.item_name = row.item_name || "";
+		child.item_code = row.item_code || "";
 		child.material_description = row.material_description || "";
 		child.origin = row.origin || "";
 		child.length = row.length || 0;
@@ -687,6 +916,7 @@ function getSelectedBoqItems(dialog) {
 	dialog.$wrapper.find('input[type="checkbox"]:checked').each(function () {
 		const $checkbox = $(this);
 		selected.push({
+			item_code: dialog.boq_items?.[$checkbox.data("idx")]?.item_code || "",
 			item_name: $checkbox.data("item_name"),
 			material_description: $checkbox.data("material_description"),
 			origin: $checkbox.data("origin"),
@@ -711,6 +941,12 @@ function getSelectedBoqItems(dialog) {
 // BOQ Item (child table)
 // ==========================
 frappe.ui.form.on("BOQ Item", {
+	item_code(frm) {
+		updateBoqItemCodeVisibility(frm);
+	},
+	items_remove(frm) {
+		recalc_boq_items(frm);
+	},
 	form_render(frm, cdt, cdn) {
 		recalc_boq_item(frm, cdt, cdn);
 	},
@@ -801,7 +1037,18 @@ function recalc_boq_item(frm, cdt, cdn) {
 	recalc_boq_totals(frm);
 }
 
+function updateBoqItemCodeVisibility(frm) {
+	const grid = frm.fields_dict?.items?.grid;
+	if (!grid) return;
+	const visible = (frm.doc.items || []).some((row) => String(row.item_code || "").trim());
+	if (grid._boq_item_code_visible !== visible) {
+		grid._boq_item_code_visible = visible;
+		grid.toggle_display("item_code", visible);
+	}
+}
+
 function recalc_boq_items(frm) {
+	updateBoqItemCodeVisibility(frm);
 	(frm.doc.items || []).forEach((row) => {
 		recalc_boq_item(frm, row.doctype, row.name);
 	});

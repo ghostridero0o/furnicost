@@ -96,6 +96,7 @@ def make_sales_order(source_name, target_doc=None):
 			},
 			"BOQ Item": {
 				"doctype": "Sales Order Item",
+				"field_no_map": ["item_code"],
 				"field_map": {
 					"uom": "uom",
 					"weight_rc": "qty",
@@ -109,6 +110,13 @@ def make_sales_order(source_name, target_doc=None):
 
 
 def _set_sales_order_item_custom_name(source, target, source_parent=None):
+	# BOQ catalogue codes are not ERPNext Item codes. Preserve the agreed price
+	# independently of whichever ERPNext Item is selected later.
+	target.item_code = None
+	target.custom_boq_source = source.parent
+	target.custom_boq_item = source.name
+	target.custom_boq_rate = flt(source.rate)
+	target.custom_boq_uom = source.uom
 	item_name = source.get("item_name") or ""
 	material_description = source.get("material_description") or ""
 	if material_description:
@@ -171,6 +179,7 @@ def get_boq_items(
 		filters=filters,
 		fields=[
 			"name",
+			"item_code",
 			"item_name",
 			"material_description",
 			"origin",

@@ -106,10 +106,20 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "D\u1ef1 to\u00e1n n\u1ed9i th\u1ea5t",
-   "link_count": 4,
+   "link_count": 5,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Standard Price List",
+   "link_count": 0,
+   "link_to": "Standard Price List",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   },
   {
    "hidden": 0,
