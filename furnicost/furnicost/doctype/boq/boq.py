@@ -9,13 +9,21 @@ class BOQ(Document):
 		self.calculate_totals()
 
 	def calculate_totals(self):
+		# Submit validates with docstatus=1; only that initial transition may
+		# calculate. Never rewrite monetary values on an already submitted BOQ.
+		if self.docstatus != 0 and getattr(self, "_action", None) != "submit":
+			return
 		total_qty = 0
 		total = 0
 
 		for row in self.get("items") or []:
+			row.weight_rc = flt(row.weight_rc, row.precision("weight_rc"))
+			row.amount = flt(row.amount, row.precision("amount"))
 			total_qty += flt(row.qty)
 			total += flt(row.amount)
 
+		total_qty = flt(total_qty, self.precision("total_qty"))
+		total = flt(total, self.precision("total"))
 		self.total_qty = total_qty
 		self.total = total
 
@@ -40,8 +48,11 @@ class BOQ(Document):
 			if (tax.get("add_deduct_tax") or "") == "Deduct":
 				tax_amount = -abs(tax_amount)
 
-			total_taxes_and_charges += tax_amount
-			running_total = total + total_taxes_and_charges
+			tax_amount = flt(tax_amount, tax.precision("tax_amount"))
+			total_taxes_and_charges = flt(
+				total_taxes_and_charges + tax_amount, self.precision("total_taxes_and_charges")
+			)
+			running_total = flt(total + total_taxes_and_charges, tax.precision("total"))
 			prev_row_amount = tax_amount
 
 			tax.tax_amount = tax_amount
@@ -49,7 +60,9 @@ class BOQ(Document):
 
 		self.total_taxes_and_charges = total_taxes_and_charges
 		conversion_rate = flt(self.get("conversion_rate")) or 1
-		self.base_total_taxes_and_charges = total_taxes_and_charges * conversion_rate
+		self.base_total_taxes_and_charges = flt(
+			total_taxes_and_charges * conversion_rate, self.precision("base_total_taxes_and_charges")
+		)
 
 		discount_amount = flt(self.get("discount_amount"))
 		discount_percent = flt(self.get("additional_discount_percentage"))
@@ -57,7 +70,9 @@ class BOQ(Document):
 		discount_base = total + total_taxes_and_charges if apply_discount_on == "Grand Total" else total
 
 		if discount_percent:
-			discount_amount = (discount_base * discount_percent) / 100
+			discount_amount = flt(
+				(discount_base * discount_percent) / 100, self.precision("discount_amount")
+			)
 			self.discount_amount = discount_amount
 
 		grand_total = total + total_taxes_and_charges
@@ -66,7 +81,7 @@ class BOQ(Document):
 		else:
 			grand_total = total - discount_amount + total_taxes_and_charges
 
-		self.grand_total = grand_total
+		self.grand_total = flt(grand_total, self.precision("grand_total"))
 
 
 @frappe.whitelist()

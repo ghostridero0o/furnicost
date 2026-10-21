@@ -1007,6 +1007,7 @@ frappe.ui.form.on("Sales Taxes and Charges", {
 // Helper: Recalc amounts
 // ==========================
 function recalc_boq_item(frm, cdt, cdn) {
+	if (frm.doc.docstatus !== 0) return;
 	const row = locals[cdt][cdn];
 	if (!row) return;
 
@@ -1031,8 +1032,8 @@ function recalc_boq_item(frm, cdt, cdn) {
 		weight = qty;
 	}
 
-	frappe.model.set_value(cdt, cdn, "weight_rc", weight);
-	frappe.model.set_value(cdt, cdn, "amount", rate * weight);
+	frappe.model.set_value(cdt, cdn, "weight_rc", flt(weight, precision("weight_rc", row)));
+	frappe.model.set_value(cdt, cdn, "amount", flt(rate * weight, precision("amount", row)));
 
 	recalc_boq_totals(frm);
 }
@@ -1049,6 +1050,7 @@ function updateBoqItemCodeVisibility(frm) {
 
 function recalc_boq_items(frm) {
 	updateBoqItemCodeVisibility(frm);
+	if (frm.doc.docstatus !== 0) return;
 	(frm.doc.items || []).forEach((row) => {
 		recalc_boq_item(frm, row.doctype, row.name);
 	});
@@ -1057,15 +1059,15 @@ function recalc_boq_items(frm) {
 }
 
 function recalc_boq_totals(frm) {
-	if (frappe.flags.boq_recalc_in_progress) {
+	if (frm.doc.docstatus !== 0 || frappe.flags.boq_recalc_in_progress) {
 		return;
 	}
 	frappe.flags.boq_recalc_in_progress = true;
 
 	const items = frm.doc.items || [];
 	const taxes = frm.doc.taxes || [];
-	const total_qty = items.reduce((sum, row) => sum + flt(row.qty), 0);
-	const total = items.reduce((sum, row) => sum + flt(row.amount), 0);
+	const total_qty = flt(items.reduce((sum, row) => sum + flt(row.qty), 0), precision("total_qty", frm.doc));
+	const total = flt(items.reduce((sum, row) => sum + flt(row.amount), 0), precision("total", frm.doc));
 
 	frappe.model.set_value(frm.doctype, frm.doc.name, "total_qty", total_qty);
 	frappe.model.set_value(frm.doctype, frm.doc.name, "total", total);
@@ -1099,8 +1101,9 @@ function recalc_boq_totals(frm) {
 				tax_amount = -Math.abs(tax_amount);
 			}
 
-			total_taxes_and_charges += tax_amount;
-			running_total = total + total_taxes_and_charges;
+			tax_amount = flt(tax_amount, precision("tax_amount", tax));
+			total_taxes_and_charges = flt(total_taxes_and_charges + tax_amount, precision("total_taxes_and_charges", frm.doc));
+			running_total = flt(total + total_taxes_and_charges, precision("total", tax));
 			prev_row_amount = tax_amount;
 
 			frappe.model.set_value(tax.doctype, tax.name, "tax_amount", tax_amount);
@@ -1113,7 +1116,7 @@ function recalc_boq_totals(frm) {
 	}
 
 	if (discount_percent) {
-		discount_amount = (discount_base * discount_percent) / 100;
+		discount_amount = flt((discount_base * discount_percent) / 100, precision("discount_amount", frm.doc));
 		frappe.model.set_value(frm.doctype, frm.doc.name, "discount_amount", discount_amount);
 	}
 
@@ -1129,7 +1132,7 @@ function recalc_boq_totals(frm) {
 		frm.doctype,
 		frm.doc.name,
 		"base_total_taxes_and_charges",
-		total_taxes_and_charges * conversion_rate
+		flt(total_taxes_and_charges * conversion_rate, precision("base_total_taxes_and_charges", frm.doc))
 	);
 	frappe.model.set_value(
 		frm.doctype,
@@ -1137,7 +1140,7 @@ function recalc_boq_totals(frm) {
 		"total_taxes_and_charges",
 		total_taxes_and_charges
 	);
-	frappe.model.set_value(frm.doctype, frm.doc.name, "grand_total", grand_total);
+	frappe.model.set_value(frm.doctype, frm.doc.name, "grand_total", flt(grand_total, precision("grand_total", frm.doc)));
 
 	frappe.flags.boq_recalc_in_progress = false;
 }
