@@ -1,0 +1,52 @@
+{
+ "doctype": "Sidebar",
+ "name": "FurniCost",
+ "title": "FurniCost",
+ "module": "FurniCost",
+ "app": "furnicost",
+ "standard": 1,
+ "header_icon": "milestone",
+ "modified": "2026-11-07 00:00:00.000000",
+ "items": [
+  {
+   "type": "Link",
+   "label": "Home",
+   "link_type": "Workspace",
+   "link_to": "FurniCost",
+   "child": 0,
+   "open_in_new_tab": 0
+  },
+  {
+   "type": "Link",
+   "label": "Furniture Costing",
+   "link_type": "DocType",
+   "link_to": "Furniture Costing",
+   "child": 0,
+   "open_in_new_tab": 0
+  },
+  {
+   "type": "Link",
+   "label": "Furniture Summary",
+   "link_type": "DocType",
+   "link_to": "Furniture Summary",
+   "child": 0,
+   "open_in_new_tab": 0
+  },
+  {
+   "type": "Link",
+   "label": "BOQ",
+   "link_type": "DocType",
+   "link_to": "BOQ",
+   "child": 0,
+   "open_in_new_tab": 0
+  },
+  {
+   "type": "Link",
+   "label": "Bảng giá chuẩn",
+   "link_type": "DocType",
+   "link_to": "Standard Price List",
+   "child": 0,
+   "open_in_new_tab": 0
+  }
+ ]
+}

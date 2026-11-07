@@ -29,6 +29,7 @@
   "price_list_currency",
   "plc_conversion_rate",
   "items_section",
+  "show_illustration",
   "items",
   "taxes_section",
   "tax_category",
@@ -368,6 +369,15 @@
    "fieldtype": "Link",
    "label": "Company Address",
    "options": "Address"
+  },
+  {
+   "fieldname": "show_illustration",
+   "fieldtype": "Check",
+   "label": "Hiện ảnh minh hoạ",
+   "default": "1",
+   "allow_on_submit": 1,
+   "print_hide": 1,
+   "description": "Bật để hiển thị cột Ảnh minh hoạ khi in mẫu BOQ Bao Gia."
   }
  ],
  "index_web_pages_for_search": 1,

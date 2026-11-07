@@ -7,8 +7,14 @@ app_license = "mit"
 
 doctype_js = {"Sales Order": "public/js/sales_order.js"}
 extend_doctype_class = {"Sales Order": ["furnicost.sales_order.BOQSalesOrderMixin"]}
-after_install = "furnicost.sales_order.ensure_boq_rate_fields"
-after_migrate = "furnicost.sales_order.ensure_boq_rate_fields"
+after_install = [
+    "furnicost.sales_order.ensure_boq_rate_fields",
+    "furnicost.navigation.sync_sidebar",
+]
+after_migrate = [
+    "furnicost.sales_order.ensure_boq_rate_fields",
+    "furnicost.navigation.sync_sidebar",
+]
 
 # Apps
 # ------------------
