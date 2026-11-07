@@ -6,6 +6,10 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "source_boq",
+  "source_boq_item",
+  "boq_item_name",
+  "cost_status",
   "furniture",
   "dvt",
   "rate_per_unit",
@@ -21,14 +25,14 @@
    "in_list_view": 1,
    "label": "Furniture",
    "options": "Furniture Costing",
-   "reqd": 1
+   "reqd": 0,
+   "mandatory_depends_on": "eval:!doc.source_boq"
   },
   {
-   "fetch_from": "furniture.dvt",
    "fieldname": "dvt",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "\u0110VT",
+   "label": "ĐVT",
    "read_only": 1
   },
   {
@@ -36,7 +40,7 @@
    "fieldname": "rate_per_unit",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Gi\u00e1 v\u1ed1n",
+   "label": "Giá vốn",
    "read_only": 1
   },
   {
@@ -51,21 +55,50 @@
    "fieldname": "margin",
    "fieldtype": "Percent",
    "in_list_view": 1,
-   "label": "L\u00e3i g\u1ed9p"
+   "label": "Lãi gộp",
+   "read_only_depends_on": "eval:!!doc.source_boq"
   },
   {
    "fieldname": "rate_bg",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Gi\u00e1 b\u00e1o",
+   "label": "Giá báo",
    "read_only": 1
   },
   {
    "fieldname": "amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Th\u00e0nh ti\u1ec1n",
+   "label": "Thành tiền",
    "read_only": 1
+  },
+  {
+   "fieldname": "source_boq",
+   "fieldtype": "Link",
+   "options": "BOQ",
+   "label": "BOQ nguồn",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_boq_item",
+   "fieldtype": "Data",
+   "label": "Dòng BOQ nguồn",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "boq_item_name",
+   "fieldtype": "Data",
+   "label": "Hạng mục BOQ",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "cost_status",
+   "fieldtype": "Data",
+   "label": "Trạng thái giá vốn",
+   "read_only": 1,
+   "in_list_view": 1
   }
  ],
  "grid_page_length": 50,

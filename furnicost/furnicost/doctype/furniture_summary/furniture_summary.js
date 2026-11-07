@@ -10,11 +10,10 @@ const DEBOUNCE_DELAY = 300;
 frappe.ui.form.on("Furniture Summary", {
     refresh(frm) {
         updateTotals(frm);
+        if (frm.doc.docstatus === 0) frm.add_custom_button(__("BOQ"), () => showBOQDialog(frm), __("Get Items From"));
         
-        if (!frm.is_new()) {
-            frm.add_custom_button(__('Get Items From'), () => {
-                showSourceDialog(frm);
-            });
+        if (frm.doc.docstatus === 0) {
+            frm.add_custom_button(__('Furniture Costing'), () => showFurnitureCostingDialog(frm), __('Get Items From'));
         }
 
         frm.add_custom_button(__('Update Items Summary'), () => {
@@ -60,6 +59,7 @@ frappe.ui.form.on("Furniture Summary Items", {
     furniture(frm, cdt, cdn) {
         const row = locals[cdt][cdn];
         if (!row.furniture) {
+            if (row.source_boq) row.rate_per_unit = 0;
             recalcRow(frm, cdt, cdn);
             debounceUpdateGroupItems(frm);
             return;
@@ -76,11 +76,17 @@ frappe.ui.form.on("Furniture Summary Items", {
                 
                 const { dvt = "", rate_per_unit = 0, margin = 0 } = r.message;
                 
-                frappe.model.set_value(cdt, cdn, {
-                    dvt,
-                    rate_per_unit,
-                    margin
-                });
+                if (locals[cdt][cdn].furniture !== r.message.name) return;
+                if (row.source_boq) {
+                    if (normalizeBOQUom(row.dvt) !== normalizeBOQUom(dvt)) {
+                        frappe.msgprint(__("Đơn vị BOQ và Furniture khác nhau. Vui lòng chọn Furniture cùng đơn vị."));
+                        frappe.model.set_value(cdt, cdn, "furniture", "");
+                        return;
+                    }
+                    row.rate_per_unit = rate_per_unit;
+                } else {
+                    frappe.model.set_value(cdt, cdn, {dvt, rate_per_unit, margin});
+                }
 
                 recalcRow(frm, cdt, cdn);
                 debounceUpdateGroupItems(frm);
@@ -100,6 +106,15 @@ function recalcRow(frm, cdt, cdn) {
     const margin = parseFloat(row.margin) || 0;
     const qty = parseFloat(row.qty) || 0;
 
+    if (row.source_boq) {
+        const price = flt(row.rate_bg);
+        row.amount = qty * price;
+        row.margin = row.furniture && price ? (1 - rate_per_unit / price) * 100 : 0;
+        row.cost_status = !row.furniture ? "Chưa có giá vốn" : price ? "Đã có giá vốn" : "Giá báo bằng 0 — không tính % lãi";
+        frm.refresh_field("items");
+        updateTotals(frm);
+        return;
+    }
     const denom = 1 - (margin / 100.0);
     const rate_bg = denom !== 0 ? (rate_per_unit / denom) : 0;
     const amount = qty * rate_bg;
@@ -144,11 +159,14 @@ async function refreshItemsFromFurniture(frm) {
         }).then(res => {
             if (!res.message) return;
             const { dvt = "", rate_per_unit = 0, margin = 0 } = res.message;
-            return frappe.model.set_value(item.doctype, item.name, {
-                dvt,
-                rate_per_unit,
-                margin
-            }, undefined, true);
+            if (item.source_boq) {
+                if (normalizeBOQUom(item.dvt) !== normalizeBOQUom(dvt)) {
+                    frappe.throw(__("Đơn vị BOQ và Furniture khác nhau: {0}", [item.furniture]));
+                }
+                item.rate_per_unit = rate_per_unit;
+                return;
+            }
+            return frappe.model.set_value(item.doctype, item.name, {dvt, rate_per_unit, margin}, undefined, true);
         }).catch(err => {
             console.error(`Error refreshing furniture ${item.furniture}:`, err);
         })
@@ -271,145 +289,95 @@ function populateGroupTable(frm, aggregated) {
 // ============================================
 // GET ITEMS FROM PROJECT/CUSTOMER
 // ============================================
-function showSourceDialog(frm) {
-    frappe.prompt([
-        {
-            fieldname: 'source_type',
-            label: __('Get From'),
-            fieldtype: 'Select',
-            options: ['Project', 'Customer'],
-            reqd: 1
-        }
-    ], (values) => {
-        const source_type = values.source_type;
-        const fieldname = source_type.toLowerCase();
-        const value = frm.doc[fieldname];
-
-        if (!value) {
-            frappe.msgprint(__('Please set {0} before continuing', [source_type]));
-            return;
-        }
-
-        fetchAndShowCostings(frm, fieldname, value);
-    }, __('Get Items From'), __('Continue'));
-}
-
-function fetchAndShowCostings(frm, fieldname, value) {
-    frappe.call({
-        method: "frappe.client.get_list",
-        args: {
-            doctype: "Furniture Costing",
-            filters: { [fieldname]: value },
-            fields: ["name", "furniture", "dvt", "rate_per_unit", "margin"],
-            limit_page_length: 100
-        },
-        callback(r) {
-            const records = r.message || [];
-            
-            if (records.length === 0) {
-                frappe.msgprint(__('No Furniture Costing found'));
-                return;
-            }
-
-            showCostingSelectionDialog(frm, records);
-        }
-    });
-}
-
-function showCostingSelectionDialog(frm, records) {
-    const html = buildCostingTableHTML(records);
-    
+function showFurnitureCostingDialog(frm) {
+    let requestId = 0;
+    let ready = false;
     const dialog = new frappe.ui.Dialog({
-        title: __('Select Furniture Costings'),
-        fields: [{ 
-            fieldtype: 'HTML', 
-            fieldname: 'costing_html' 
-        }],
-        primary_action_label: __('Select'),
+        title: __('Furniture Costing'),
+        size: 'extra-large',
+        fields: [
+            {fieldname: 'project', fieldtype: 'Link', options: 'Project', label: __('Project'), onchange: load},
+            {fieldname: 'this_project', fieldtype: 'Check', label: __('This Project'),
+                onchange: () => useCurrent('project')},
+            {fieldtype: 'Column Break'},
+            {fieldname: 'customer', fieldtype: 'Link', options: 'Customer', label: __('Customer'), onchange: load},
+            {fieldname: 'this_customer', fieldtype: 'Check', label: __('This Customer'),
+                onchange: () => useCurrent('customer')},
+            {fieldtype: 'Section Break'},
+            {fieldname: 'status', fieldtype: 'HTML'},
+            {fieldname: 'costings', fieldtype: 'Table', label: __('Chọn Furniture Costing'),
+                cannot_add_rows: true, cannot_delete_rows: true, data: [], fields: [
+                    {fieldname: 'costing_name', fieldtype: 'Link', options: 'Furniture Costing', label: __('Furniture Costing'), in_list_view: 1, read_only: 1, columns: 3},
+                    {fieldname: 'furniture', fieldtype: 'Data', label: __('Furniture'), in_list_view: 1, read_only: 1, columns: 3},
+                    {fieldname: 'dvt', fieldtype: 'Data', label: __('ĐVT'), in_list_view: 1, read_only: 1, columns: 1},
+                    {fieldname: 'rate_per_unit', fieldtype: 'Currency', label: __('Giá vốn'), in_list_view: 1, read_only: 1, columns: 2},
+                    {fieldname: 'margin', fieldtype: 'Percent', label: __('Lãi gộp'), in_list_view: 1, read_only: 1, columns: 1}
+                ]}
+        ],
+        primary_action_label: __('Thêm vào Summary'),
         primary_action() {
-            const selected = getSelectedCostings(dialog);
-            
-            if (selected.length === 0) {
-                frappe.msgprint(__('Please select at least one record'));
-                return;
-            }
-            
-            addSelectedItemsToForm(frm, selected);
+            const rows = dialog.fields_dict.costings.grid.get_selected_children();
+            if (!rows.length) return frappe.msgprint(__('Vui lòng chọn ít nhất một dòng.'));
+            addSelectedItemsToForm(frm, rows.map(row => ({
+                furniture: row.costing_name, dvt: row.dvt,
+                rate_per_unit: row.rate_per_unit, margin: row.margin
+            })));
+            frm.dirty();
             dialog.hide();
         }
     });
-
-    dialog.fields_dict.costing_html.$wrapper.html(html);
+    async function useCurrent(field) {
+        if (!ready) return;
+        const checked = dialog.get_value('this_' + field);
+        if (checked && !frm.doc[field]) {
+            await dialog.set_value('this_' + field, 0);
+            frappe.msgprint(__('Furniture Summary chưa có {0}.', [field === 'project' ? 'Project' : 'Customer']));
+            return;
+        }
+        dialog.set_df_property(field, 'read_only', !!checked);
+        await dialog.set_value(field, checked ? frm.doc[field] : '');
+        await load();
+    }
+    async function load() {
+        if (!ready) return;
+        const id = ++requestId;
+        const grid = dialog.fields_dict.costings.grid;
+        grid.df.data = [];
+        grid.refresh();
+        dialog.get_primary_btn().prop('disabled', true);
+        dialog.fields_dict.status.$wrapper.text(__('Đang tải…'));
+        const filters = {};
+        for (const field of ['project', 'customer']) {
+            if (dialog.get_value(field)) filters[field] = dialog.get_value(field);
+        }
+        try {
+            const rows = [];
+            const pageSize = 100;
+            for (let start = 0; ; start += pageSize) {
+                const result = await frappe.call({method: 'frappe.client.get_list', args: {
+                    doctype: 'Furniture Costing', filters,
+                    fields: ['name', 'furniture', 'dvt', 'rate_per_unit', 'margin'],
+                    order_by: 'name asc', limit_start: start, limit_page_length: pageSize
+                }});
+                if (id !== requestId) return;
+                const page = result.message || [];
+                rows.push(...page.map(row => ({...row, costing_name: row.name})));
+                if (page.length < pageSize) break;
+            }
+            grid.df.data = rows;
+            grid.refresh();
+            dialog.fields_dict.status.$wrapper.text(rows.length
+                ? __('{0} Furniture Costing. Chọn cả Project và Customer sẽ lọc theo cả hai điều kiện.', [rows.length])
+                : __('Không có Furniture Costing phù hợp.'));
+        } catch (error) {
+            if (id === requestId) dialog.fields_dict.status.$wrapper.text(__('Không tải được dữ liệu. Vui lòng thử lại.'));
+        } finally {
+            if (id === requestId) dialog.get_primary_btn().prop('disabled', false);
+        }
+    }
     dialog.show();
-}
-
-function buildCostingTableHTML(records) {
-    const rows = records.map(r => `
-        <tr>
-            <td>
-                <input type="checkbox"
-                    data-furniture="${r.furniture || ""}"
-                    data-dvt="${r.dvt || ""}"
-                    data-rate="${r.rate_per_unit || 0}"
-                    data-margin="${r.margin || 0}">
-            </td>
-            <td>${r.furniture || ""}</td>
-            <td>${r.dvt || ""}</td>
-            <td>${frappe.format(r.rate_per_unit || 0, {fieldtype: "Currency"})}</td>
-            <td>${r.margin || 0}</td>
-        </tr>
-    `).join('');
-    
-    return `
-        <style>
-            .costing-table { 
-                width: 100%; 
-                border-collapse: collapse; 
-            }
-            .costing-table th, .costing-table td {
-                border: 1px solid #ddd;
-                padding: 8px;
-                text-align: left;
-            }
-            .costing-table th { 
-                background-color: #f5f5f5;
-                font-weight: 600;
-            }
-            .costing-table tbody tr:hover {
-                background-color: #f9f9f9;
-            }
-        </style>
-        <table class="costing-table">
-            <thead>
-                <tr>
-                    <th style="width: 60px;">Select</th>
-                    <th>Furniture</th>
-                    <th>ĐVT</th>
-                    <th>Rate per Unit</th>
-                    <th>Margin (%)</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${rows}
-            </tbody>
-        </table>
-    `;
-}
-
-function getSelectedCostings(dialog) {
-    const selected = [];
-    
-    dialog.$wrapper.find('input[type="checkbox"]:checked').each(function() {
-        const $checkbox = $(this);
-        selected.push({
-            furniture: $checkbox.data("furniture"),
-            dvt: $checkbox.data("dvt"),
-            rate_per_unit: $checkbox.data("rate"),
-            margin: $checkbox.data("margin")
-        });
-    });
-    
-    return selected;
+    ready = true;
+    load();
 }
 
 function addSelectedItemsToForm(frm, items) {
@@ -424,4 +392,65 @@ function addSelectedItemsToForm(frm, items) {
     
     frm.refresh_field("items");
     debounceUpdateGroupItems(frm);
+}
+
+
+function normalizeBOQUom(value) {
+    return String(value || "").toLowerCase().replace(/²/g, "2").replace(/³/g, "3").replace(/\s+/g, "");
+}
+
+function showBOQDialog(frm) {
+    const dialog = new frappe.ui.Dialog({
+        title: __("Lấy hạng mục từ BOQ"),
+        size: "extra-large",
+        fields: [
+            {fieldname: "boq", fieldtype: "Link", options: "BOQ", label: "BOQ", reqd: 1,
+                get_query: () => ({filters: {docstatus: ["!=", 2],
+                    ...(frm.doc.project ? {project: frm.doc.project} : {}),
+                    ...(frm.doc.customer ? {customer: frm.doc.customer} : {})}}),
+                async onchange() {
+                    const boq = dialog.get_value("boq");
+                    dialog.fields_dict.rows.df.data = [];
+                    dialog.fields_dict.rows.grid.refresh();
+                    if (!boq) return;
+                    const result = await frappe.call({
+                        method: "furnicost.furnicost.doctype.furniture_summary.furniture_summary.get_boq_items",
+                        args: {boq, project: frm.doc.project, customer: frm.doc.customer}
+                    });
+                    if (dialog.get_value("boq") !== boq) return;
+                    dialog.fields_dict.rows.df.data = result.message || [];
+                    dialog.fields_dict.rows.grid.refresh();
+                }},
+            {fieldname: "rows", fieldtype: "Table", label: __("Chọn hạng mục"),
+                cannot_add_rows: true, cannot_delete_rows: true, data: [], fields: [
+                    {fieldname:"boq_item_name", fieldtype:"Data", label:"Hạng mục", in_list_view:1, read_only:1},
+                    {fieldname:"furniture", fieldtype:"Link", options:"Furniture Costing", label:"Furniture", in_list_view:1, read_only:1},
+                    {fieldname:"dvt", fieldtype:"Data", label:"ĐVT", in_list_view:1, read_only:1},
+                    {fieldname:"qty", fieldtype:"Float", label:"Khối lượng", in_list_view:1, read_only:1},
+                    {fieldname:"rate_bg", fieldtype:"Currency", label:"Giá báo", in_list_view:1, read_only:1}
+                ]}
+        ],
+        primary_action_label: __("Thêm vào Summary"),
+        async primary_action() {
+            const selected = dialog.fields_dict.rows.grid.get_selected_children();
+            if (!selected.length) return frappe.msgprint(__("Vui lòng chọn ít nhất một dòng."));
+            const existing = new Set((frm.doc.items || []).map(r => r.source_boq_item).filter(Boolean));
+            let added = 0;
+            for (const source of selected) {
+                if (existing.has(source.source_boq_item)) continue;
+                const row = frm.add_child("items");
+                for (const key of ["source_boq", "source_boq_item", "boq_item_name", "furniture", "dvt", "rate_bg", "qty", "amount"]) row[key] = source[key];
+                existing.add(source.source_boq_item);
+                recalcRow(frm, row.doctype, row.name);
+                added++;
+            }
+            frm.dirty();
+            await refreshItemsFromFurniture(frm);
+            frm.refresh_field("items");
+            await updateGroupItems(frm, false);
+            dialog.hide();
+            frappe.show_alert({message: __("Đã thêm {0} dòng; bỏ qua các dòng đã có.", [added]), indicator: "green"});
+        }
+    });
+    dialog.show();
 }
