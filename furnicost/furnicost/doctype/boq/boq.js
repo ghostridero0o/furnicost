@@ -171,14 +171,14 @@ function showPriceListItemsDialog(frm, price_list) {
 		fields: [
 			{ fieldtype: "HTML", fieldname: "results" },
 		],
-		primary_action_label: __("Get Items"),
+		primary_action_label: __("Thêm"),
 		primary_action() {
 			if (!selected.size) {
 				frappe.msgprint(__("Please select at least one record"));
 				return;
 			}
 			appendPriceListItems(frm, [...selected.values()]);
-			dialog.hide();
+			frappe.show_alert({ message: __("Đã thêm"), indicator: "green" });
 		},
 	});
 	const wrapper = dialog.fields_dict.results.$wrapper;
@@ -190,7 +190,12 @@ function showPriceListItemsDialog(frm, price_list) {
 		records = filtered.slice(start, start + page_size);
 		wrapper.empty();
 		const toolbar = $('<div class="mb-2"></div>').appendTo(wrapper);
-		$("<span></span>").text(__("{0} / {1} items · Selected: {2}", [filtered.length, all_records.length, selected.size])).appendTo(toolbar);
+		const selection_count = $("<span></span>").appendTo(toolbar);
+		function updateSelectionSummary() {
+			selection_count.text(__("{0} / {1} items · Selected: {2}", [filtered.length, all_records.length, selected.size]));
+			header.find('input[type="checkbox"]').prop("checked", records.length > 0 && records.every(row => selected.has(row.name))).prop("indeterminate", records.some(row => selected.has(row.name)) && !records.every(row => selected.has(row.name)));
+		}
+
 		$('<button type="button" class="btn btn-default btn-xs ml-2"></button>')
 			.text(__("Clear all filters")).on("click", () => { column_filters = {}; start = 0; render(); }).appendTo(toolbar);
 		$("<div class='text-muted small mb-2'></div>").text(__("Use the arrow in each column header to filter or sort.")).appendTo(wrapper);
@@ -201,7 +206,8 @@ function showPriceListItemsDialog(frm, price_list) {
 				.prop("checked", records.length > 0 && records.every((row) => selected.has(row.name)))
 				.on("change", function () {
 					records.forEach((row) => this.checked ? selected.set(row.name, row) : selected.delete(row.name));
-					render();
+					body.find('input[type="checkbox"]').prop("checked", this.checked);
+					updateSelectionSummary();
 				})
 		);
 		columns.forEach(([field, label]) => {
@@ -221,7 +227,7 @@ function showPriceListItemsDialog(frm, price_list) {
 			$("<td></td>").append(checkbox).appendTo(tr);
 			checkbox.on("change", () => {
 				checkbox.prop("checked") ? selected.set(row.name, row) : selected.delete(row.name);
-				render();
+				updateSelectionSummary();
 			});
 			tr.on("click", (event) => {
 				if (event.target !== checkbox[0]) checkbox.prop("checked", !checkbox.prop("checked")).trigger("change");
@@ -233,6 +239,7 @@ function showPriceListItemsDialog(frm, price_list) {
 					.appendTo(tr);
 			});
 		});
+		updateSelectionSummary();
 		wrapper.append($('<div class="table-responsive"></div>').css("max-height", "55vh").append(table));
 		if (!records.length) $("<p></p>").text(__("No items found")).appendTo(wrapper);
 		$('<button type="button" class="btn btn-default btn-sm"></button>').text(__("Previous"))
@@ -313,6 +320,10 @@ function showPriceListItemsDialog(frm, price_list) {
 		drawValues();
 		search.trigger("focus");
 	}
+	addItemSelectionActions(dialog, () => {
+		selected.clear();
+		render();
+	});
 	dialog.show();
 	render();
 }
@@ -577,6 +588,62 @@ function fetchAndShowCostings(frm, fieldname, value) {
 	});
 }
 
+function styleItemSelectionDialog(dialog) {
+	dialog.$wrapper.addClass("boq-selection-dialog");
+	dialog.$wrapper.append(`<style>
+		.boq-selection-dialog .modal-dialog { width: calc(100% - 32px); max-width: 1280px; }
+		.boq-selection-dialog .modal-content { border-radius: 14px; }
+		.boq-selection-dialog .modal-header { padding: 18px 24px; border-bottom: 1px solid var(--border-color, #e5e7eb); }
+		.boq-selection-dialog .modal-body { padding: 20px 24px; }
+		.boq-selection-dialog .modal-title { font-size: 18px; font-weight: 600; }
+		.boq-selection-dialog .boq-selection-scroll,
+		.boq-selection-dialog .table-responsive { max-height: 55vh; overflow: auto; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; }
+		.boq-selection-dialog table { width: 100%; min-width: 720px; margin: 0; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+		.boq-selection-dialog table th,
+		.boq-selection-dialog table td { padding: 12px 14px; border: 0; border-bottom: 1px solid var(--border-color, #e5e7eb); vertical-align: middle; color: var(--text-color, #1f2937); }
+		.boq-selection-dialog table th { position: sticky; top: 0; z-index: 1; background: var(--subtle-fg, #f5f7fa); font-weight: 600; white-space: nowrap; }
+		.boq-selection-dialog table tbody tr:last-child td { border-bottom: 0; }
+		.boq-selection-dialog .costing-table tbody tr:has(input[type="checkbox"]),
+		.boq-selection-dialog .boq-items-table tbody tr:has(input[type="checkbox"]) { cursor: pointer; }
+		.boq-selection-dialog table tbody tr:hover { background: var(--control-bg, #f3f4f6); }
+		.boq-selection-dialog table tbody tr:has(input[type="checkbox"]:checked) { background: var(--highlight-color, #e8f0fe); }
+		.boq-selection-dialog table th:first-child,
+		.boq-selection-dialog table td:first-child { width: 52px; text-align: center; }
+		.boq-selection-dialog table input[type="checkbox"] { width: 16px; height: 16px; vertical-align: middle; cursor: pointer; accent-color: var(--primary, #2490ef); }
+		.boq-selection-dialog .boq-number { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+		.boq-selection-dialog .boq-selection-note { margin: 0 0 12px; color: var(--text-muted, #6b7280); font-size: 12px; }
+		.boq-selection-dialog .boq-selection-empty { padding: 28px; text-align: center; color: var(--text-muted, #6b7280); }
+		.boq-selection-dialog .modal-footer { padding: 14px 24px; gap: 10px; border-top: 1px solid var(--border-color, #e5e7eb); background: var(--subtle-fg, #f8fafc); }
+		.boq-selection-dialog .modal-footer .standard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+		.boq-selection-dialog .modal-footer .custom-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+		.boq-selection-dialog .modal-footer .btn { min-height: 34px; padding: 6px 16px; border-radius: 6px; }
+		@media (max-width: 576px) {
+			.boq-selection-dialog .modal-dialog { width: calc(100% - 16px); margin: 8px auto; }
+			.boq-selection-dialog .modal-header, .boq-selection-dialog .modal-body, .boq-selection-dialog .modal-footer { padding: 12px; }
+		}
+	</style>`);
+}
+
+function addItemSelectionActions(dialog, clear_selection) {
+	styleItemSelectionDialog(dialog);
+	dialog.add_custom_action(__("Huỷ"), clear_selection);
+	dialog.add_custom_action(__("Thoát"), () => dialog.hide());
+	dialog.custom_actions.children().prependTo(dialog.standard_actions);
+}
+
+function enableItemSelectionRowClick(wrapper) {
+	const rows = ".costing-table tbody tr, .boq-items-table tbody tr";
+	wrapper.off("click.boqRowSelection", rows).on("click.boqRowSelection", rows, function (event) {
+		if ($(event.target).closest('input, label, button, a, select, textarea, [role="button"], [contenteditable]:not([contenteditable="false"])').length) {
+			return;
+		}
+		const checkbox = $(this).find('input[type="checkbox"]:enabled').first();
+		if (checkbox.length) {
+			checkbox.prop("checked", !checkbox.prop("checked")).trigger("change");
+		}
+	});
+}
+
 function showCostingSelectionDialog(frm, records) {
 	const html = buildCostingTableHTML(records);
 
@@ -588,7 +655,7 @@ function showCostingSelectionDialog(frm, records) {
 				fieldname: "costing_html",
 			},
 		],
-		primary_action_label: __("Select"),
+		primary_action_label: __("Thêm"),
 		primary_action() {
 			const selected = getSelectedCostings(dialog);
 			if (!selected.length) {
@@ -597,11 +664,15 @@ function showCostingSelectionDialog(frm, records) {
 			}
 
 			addSelectedItemsToForm(frm, selected);
-			dialog.hide();
+			frappe.show_alert({ message: __("Đã thêm"), indicator: "green" });
 		},
 	});
 
 	dialog.fields_dict.costing_html.$wrapper.html(html);
+	enableItemSelectionRowClick(dialog.fields_dict.costing_html.$wrapper);
+	addItemSelectionActions(dialog, () => {
+		dialog.fields_dict.costing_html.$wrapper.find('input[type="checkbox"]').prop("checked", false);
+	});
 	dialog.show();
 }
 
@@ -621,50 +692,33 @@ function buildCostingTableHTML(records) {
             </td>
             <td>${r.furniture || ""}</td>
             <td>${r.dvt || ""}</td>
-            <td>${r.width || 0}</td>
-            <td>${r.height || 0}</td>
-            <td>${r.depth || 0}</td>
-            <td>${frappe.format(r.rate_bg || 0, { fieldtype: "Currency" })}</td>
+            <td class="boq-number">${r.width || 0}</td>
+            <td class="boq-number">${r.height || 0}</td>
+            <td class="boq-number">${r.depth || 0}</td>
+            <td class="boq-number">${frappe.format(r.rate_bg || 0, { fieldtype: "Currency" })}</td>
         </tr>
     `
 		)
 		.join("");
 
 	return `
-        <style>
-            .costing-table {
-                width: 100%;
-                border-collapse: collapse;
-            }
-            .costing-table th, .costing-table td {
-                border: 1px solid #ddd;
-                padding: 8px;
-                text-align: left;
-            }
-            .costing-table th {
-                background-color: #f5f5f5;
-                font-weight: 600;
-            }
-            .costing-table tbody tr:hover {
-                background-color: #f9f9f9;
-            }
-        </style>
-        <table class="costing-table">
+        <div class="boq-selection-note">${__("Chọn các dòng cần thêm vào BOQ")}</div>
+        <div class="boq-selection-scroll"><table class="costing-table">
             <thead>
                 <tr>
-                    <th style="width: 60px;">Select</th>
-                    <th>Furniture</th>
-                    <th>ĐVT</th>
-                    <th>Width</th>
-                    <th>Height</th>
-                    <th>Depth</th>
-                    <th>Rate BG</th>
+                    <th style="width: 60px;">${__("Chọn")}</th>
+                    <th>${__("Hạng mục")}</th>
+                    <th>${__("ĐVT")}</th>
+                    <th class="boq-number">${__("Rộng")}</th>
+                    <th class="boq-number">${__("Cao")}</th>
+                    <th class="boq-number">${__("Sâu")}</th>
+                    <th class="boq-number">${__("Đơn giá")}</th>
                 </tr>
             </thead>
             <tbody>
-                ${rows}
+                ${rows || `<tr><td colspan="7" class="boq-selection-empty">${__("Không có dữ liệu phù hợp")}</td></tr>`}
             </tbody>
-        </table>
+        </table></div>
     `;
 }
 
@@ -750,13 +804,18 @@ function showBoqItemsDialog(frm) {
 		],
 	});
 
+	enableItemSelectionRowClick(dialog.fields_dict.boq_items_html.$wrapper);
+
 	dialog.set_secondary_action(() => {
 		applyBoqItemsFilter(dialog, frm);
 	});
 	dialog.set_secondary_action_label(__("Apply Filter"));
 
-	dialog.set_primary_action(__("Get Items"), () => {
+	dialog.set_primary_action(__("Thêm"), () => {
 		appendSelectedBoqItems(dialog, frm);
+	});
+	addItemSelectionActions(dialog, () => {
+		dialog.fields_dict.boq_items_html.$wrapper.find('input[type="checkbox"]').prop("checked", false);
 	});
 
 	dialog.show();
@@ -819,7 +878,7 @@ function appendSelectedBoqItems(dialog, frm) {
 
 	frm.refresh_field("items");
 	recalc_boq_items(frm);
-	dialog.hide();
+	frappe.show_alert({ message: __("Đã thêm"), indicator: "green" });
 }
 
 function renderBoqItems(dialog, items) {
@@ -860,60 +919,40 @@ function buildBoqItemsTableHTML(items) {
             </td>
             <td>${row.item_name || ""}</td>
             <td>${row.material_description || ""}</td>
-            <td>${row.qty || 0}</td>
+            <td class="boq-number">${row.qty || 0}</td>
             <td>${row.uom || ""}</td>
-            <td>${row.rate || 0}</td>
-            <td>${row.amount || 0}</td>
+            <td class="boq-number">${frappe.format(row.rate || 0, { fieldtype: "Currency" })}</td>
+            <td class="boq-number">${frappe.format(row.amount || 0, { fieldtype: "Currency" })}</td>
         </tr>
     `
 		)
 		.join("");
 
 	return `
-        <style>
-            .boq-items-table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 13px;
-            }
-            .boq-items-table th,
-            .boq-items-table td {
-                border: 1px solid #e5e7eb;
-                padding: 6px 8px;
-                text-align: left;
-                vertical-align: top;
-            }
-            .boq-items-table th {
-                background-color: #f5f5f5;
-                font-weight: 600;
-            }
-            .boq-items-table tbody tr:hover {
-                background-color: #f9f9f9;
-            }
-        </style>
-        <table class="boq-items-table">
+        <div class="boq-selection-note">${__("Chọn các dòng cần thêm vào BOQ")}</div>
+        <div class="boq-selection-scroll"><table class="boq-items-table">
             <thead>
                 <tr>
-                    <th style="width: 60px;">Select</th>
-                    <th>Item Name</th>
-                    <th>Material Description</th>
-                    <th>Qty</th>
-                    <th>UOM</th>
-                    <th>Rate</th>
-                    <th>Amount</th>
+                    <th style="width: 60px;">${__("Chọn")}</th>
+                    <th>${__("Tên hạng mục")}</th>
+                    <th>${__("Mô tả vật liệu")}</th>
+                    <th class="boq-number">${__("Số lượng")}</th>
+                    <th>${__("ĐVT")}</th>
+                    <th class="boq-number">${__("Đơn giá")}</th>
+                    <th class="boq-number">${__("Thành tiền")}</th>
                 </tr>
             </thead>
             <tbody>
-                ${rows}
+                ${rows || `<tr><td colspan="7" class="boq-selection-empty">${__("Không có dữ liệu phù hợp")}</td></tr>`}
             </tbody>
-        </table>
+        </table></div>
     `;
 }
 
 function getSelectedBoqItems(dialog) {
 	const selected = [];
 
-	dialog.$wrapper.find('input[type="checkbox"]:checked').each(function () {
+	dialog.fields_dict.boq_items_html.$wrapper.find('input[type="checkbox"]:checked').each(function () {
 		const $checkbox = $(this);
 		selected.push({
 			item_code: dialog.boq_items?.[$checkbox.data("idx")]?.item_code || "",
